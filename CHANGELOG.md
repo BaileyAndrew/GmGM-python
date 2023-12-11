@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.3 (2023/12/11)
+
+## Dependencies
+- Minimum SciPy is now 1.11, forcing minimum Python to 3.9
+
+## Fixes
+- Fixed `ImportError` for `scipy.sparse.sparray` by upgrading SciPy minimum version
+
 ## v0.0.2 (2023/12/11)
 
 ## Improvements
