@@ -11,7 +11,6 @@ except ImportError:
 Axis: TypeAlias = str
 Modality: TypeAlias = str
 DataTensor: TypeAlias = np.ndarray
-SparseArray: TypeAlias = sparse.sparray | sparse.spmatrix
 
 """
 In python 3.12, this becomes:
@@ -19,5 +18,4 @@ In python 3.12, this becomes:
 type Axis = str
 type Modality = str
 type DataTensor = np.ndarray
-type SparseArray = sparse.sparray | sparse.spmatrix
 """
