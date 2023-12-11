@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.0.7 (???)
+## v0.0.7 (2023/12/11)
 
 ## Improvements
 - Readme examples now all have import statements too
