@@ -5,7 +5,7 @@ This is a very early version so the API is subject to change.
 
 ## Installation
 
-```{bash}
+```bash
 # Pip
 python -m pip install GmGM
 ```
@@ -22,7 +22,7 @@ This package works on any dataset that can be expressed as multiple tensors of a
 
 The first step is to express your dataset as a `Dataset` object.  Suppose you had a cells x genes scRNA matrix and cells x peaks scATAC matrix, then you could create a `Dataset` object like:
 
-```{python}
+```python
 from GmGM.dataset import Dataset
 dataset: Dataset = Dataset(
     dataset={
@@ -42,7 +42,7 @@ The basic form of the algorithm is as follows:
 3) Iteratively `calculate_eigenvalues`
 4) Recompose your precision matrices, and threshold them to be sparse (can be done in one go as `recompose_sparse_precisions` to prevent unnecessary memory use
 
-```{python}
+```python
 center(dataset)
 grammify(dataset)
 calculate_eigenvectors(dataset, seed=RANDOM_STATE)
@@ -57,7 +57,7 @@ recompose_sparse_precisions(
 
 This has quadratic memory due to the computation of the Gram matrices.  When you only have a single matrix as input, you can skip this step using `direct_svd`, leading to linear memory use by directly producing the right eigenvectors from the raw data!
 
-```{python}
+```python
 center(dataset)
 direct_svd(dataset, k=N_COMPONENTS, seed=RANDOM_STATE)
 calculate_eigenvalues(dataset)
