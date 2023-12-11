@@ -1,7 +1,12 @@
 from __future__ import annotations
-from typing import TypeAlias
 import numpy as np
 import scipy.sparse as sparse
+
+try:
+    # TypeAlias only added in Python 3.10
+    from typing import TypeAlias
+except ImportError:
+    TypeAlias = "TypeAlias"
 
 Axis: TypeAlias = str
 Modality: TypeAlias = str
