@@ -29,4 +29,4 @@ The first step is to express your dataset as a "Dataset" object.
 - [ ] Add comprehensive docs
 - [ ] Have `generate_data` directly generate `Dataset` objects
 - [ ] Add conda distribution
-- [ ] Add example notebook
+- [x] Add example notebook
