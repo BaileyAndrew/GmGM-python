@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "GmGM"
-version = "0.0.2"
+version = "0.0.3"
 description = "An implementation of the Gaussian multi-Graphical Model"
 authors = [
     { name = "Bailey Andrew", email = "sceba@leeds.ac.uk" }
@@ -13,7 +13,6 @@ license = { file = "LICENSE" }
 readme = "README.md"
 classifiers = [
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -21,11 +20,11 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.8" # Oldest supported python version for 2024
+requires-python = ">=3.9" # Oldest supported python version with scipy 1.11
 dependencies = [
     "numpy>=1.23", # Oldest supported numpy version for 2024
     "dask>=2022.03", # First version drop support for Python 3.7
-    "scipy>=1.9", # Introduction of sparse array API
+    "scipy>=1.11", # Introduction of `sparray` isinstance checking
     "numba>=0.57", # First version to drop support for Python 3.7
 ]
 
