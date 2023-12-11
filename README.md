@@ -43,6 +43,10 @@ The basic form of the algorithm is as follows:
 4) Recompose your precision matrices, and threshold them to be sparse (can be done in one go as `recompose_sparse_precisions` to prevent unnecessary memory use
 
 ```python
+from GmGM.core.preprocessing import center, grammify
+from GmGM.core.core import calculate_eigenvectors, calculate_eigenvalues
+from GmGM.core.presparse_methods import recompose_sparse_precisions
+
 center(dataset)
 grammify(dataset)
 calculate_eigenvectors(dataset, seed=RANDOM_STATE)
@@ -58,6 +62,11 @@ recompose_sparse_precisions(
 This has quadratic memory due to the computation of the Gram matrices.  When you only have a single matrix as input, you can skip this step using `direct_svd`, leading to linear memory use by directly producing the right eigenvectors from the raw data!
 
 ```python
+from GmGM.dataset import Dataset
+from GmGM.core.preprocessing import center
+from GmGM.core.core import direct_svd, calculate_eigenvalues
+from GmGM.core.presparse_methods import recompose_sparse_precisions
+
 center(dataset)
 direct_svd(dataset, k=N_COMPONENTS, seed=RANDOM_STATE)
 calculate_eigenvalues(dataset)
@@ -69,7 +78,7 @@ recompose_sparse_precisions(
 )
 ```
 
-All these functions are updating `dataset` in-place; the computed precision matrices are available through the `precision_matrices` attribute of `dataset`.  This is a dictionary which you index py axis name, i.e. `dataset.precision_matrices['cell']`.
+All these functions are updating `dataset` in-place; the computed precision matrices are available through the `precision_matrices` attribute of `dataset`.  This is a dictionary which you index by axis name, i.e. `dataset.precision_matrices['cell']`.
 
 ## Roadmap
 

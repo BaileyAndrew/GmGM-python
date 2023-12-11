@@ -1,5 +1,13 @@
 # Changelog
 
+## v0.0.7 (???)
+
+## Improvements
+- Readme examples now all have import statements too
+
+### Fixes
+- Removed typo in readme
+
 ## v0.0.6 (2023/12/11)
 
 ### Fixes
