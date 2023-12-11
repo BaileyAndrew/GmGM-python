@@ -7,14 +7,9 @@ name = "GmGM"
 version = "0.0.1"
 description = "An implementation of the Gaussian multi-Graphical Model"
 authors = [
-    {
-        name = "Bailey Andrew",
-        email = "sceba@leeds.ac.uk"
-    }
+    { name = "Bailey Andrew", email = "sceba@leeds.ac.uk" }
 ]
-license = {
-    file = "LICENSE"
-}
+license = { file = "LICENSE" }
 readme = "README.md"
 classifiers = [
     "Programming Language :: Python :: 3",
