@@ -20,7 +20,56 @@ This package works on any dataset that can be expressed as multiple tensors of a
 
 ## Usage
 
-The first step is to express your dataset as a "Dataset" object.
+The first step is to express your dataset as a `Dataset` object.  Suppose you had a cells x genes scRNA matrix and cells x peaks scATAC matrix, then you could create a `Dataset` object like:
+
+```{python}
+from GmGM.dataset import Dataset
+dataset: Dataset = Dataset(
+    dataset={
+        "scRNA": scRNA,
+        "scATAC": scATAC
+    },
+    structure={
+        "scRNA": ("cell", "gene"),
+        "scATAC": ("cell", "peak")
+    }
+)
+```
+
+The basic form of the algorithm is as follows:
+1) Create gram matrices (either by `center`ing and `grammifying` or using the nonparanormal skeptic)
+2) Analytically `calculate_eigenvectors`
+3) Iteratively `calculate_eigenvalues`
+4) Recompose your precision matrices, and threshold them to be sparse (can be done in one go as `recompose_sparse_precisions` to prevent unnecessary memory use
+
+```{python}
+center(dataset)
+grammify(dataset)
+calculate_eigenvectors(dataset, seed=RANDOM_STATE)
+calculate_eigenvalues(dataset)
+recompose_sparse_precisions(
+    dataset,
+    to_keep=N_NEIGHBORS,
+    threshold_method='rowwise-col-weighted',
+    batch_size=1000
+)
+```
+
+This has quadratic memory due to the computation of the Gram matrices.  When you only have a single matrix as input, you can skip this step using `direct_svd`, leading to linear memory use by directly producing the right eigenvectors from the raw data!
+
+```{python}
+center(dataset)
+direct_svd(dataset, k=N_COMPONENTS, seed=RANDOM_STATE)
+calculate_eigenvalues(dataset)
+recompose_sparse_precisions(
+    dataset,
+    to_keep=N_NEIGHBORS,
+    threshold_method='rowwise-col-weighted',
+    batch_size=1000
+)
+```
+
+All these functions are updating `dataset` in-place; the computed precision matrices are available through the `precision_matrices` attribute of `dataset`.  This is a dictionary which you index py axis name, i.e. `dataset.precision_matrices['cell']`.
 
 ## Roadmap
 
