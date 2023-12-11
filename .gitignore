@@ -1,3 +1,4 @@
 src/GmGM/__pycache__/*
 src/GmGM/core/__pycache__/*
 src/GmGM/extras/__pycache__/*
+dist/*
