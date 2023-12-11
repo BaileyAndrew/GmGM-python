@@ -179,7 +179,7 @@ def recompose_sparse_precisions(
     Creates a pre-thresholded precision matrix
     """
 
-    if isinstance(to_keep, float | int):
+    if isinstance(to_keep, float) | isinstance(to_keep, int):
         to_keep = {
             axis: to_keep
             for axis in X.all_axes

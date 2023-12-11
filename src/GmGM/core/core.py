@@ -31,7 +31,7 @@ def direct_svd(
     
     V_1, Lambda, V_2 = da.linalg.svd_compressed(
         X.dataset[list(X.dataset.keys())[0]],
-        k=200,
+        k=k,
         compute=True,
         n_power_iter=4,
         n_oversamples=100,
@@ -51,6 +51,7 @@ def direct_svd(
 def calculate_eigenvectors(
     X: Dataset,
     verbose: bool = False,
+    full: bool = True,
     **params
 ) -> Dataset:
     # Initialize the gram matrices
@@ -71,12 +72,17 @@ def calculate_eigenvectors(
     for axis, gram_matrix in grams.items():
         if verbose:
             print(f"Calculating eigenvalues for {axis=}")
-        if not isinstance(gram_matrix, da.Array):
-            gram_matrix = da.from_array(gram_matrix)
-        _, s, eigenvectors = da.linalg.svd_compressed(gram_matrix, **params)
-        eigenvalues = s**2
-        eigenvectors = eigenvectors.compute().T
-        eigenvalues = eigenvalues.compute()
+        if not full:
+            if not isinstance(gram_matrix, da.Array):
+                gram_matrix = da.from_array(gram_matrix)
+            _, s, eigenvectors = da.linalg.svd_compressed(gram_matrix, **params)
+            eigenvalues = s**2
+            eigenvectors = eigenvectors.compute().T
+            eigenvalues = eigenvalues.compute()
+        else:
+            if isinstance(gram_matrix, da.Array):
+                gram_matrix = gram_matrix.compute()
+            eigenvalues, eigenvectors = np.linalg.eigh(gram_matrix)
 
         es[axis] = eigenvalues
         evecs[axis] = eigenvectors

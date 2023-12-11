@@ -2,8 +2,13 @@
 
 ## v0.0.4 (2023/12/11)
 
+## Improvements
+- `calculate_eigenvectors` no longer forces you to pick top `k` components
+
 ## Fixes
 - Fixed `TypeError: unsupported operand type(s) for |: 'type' and 'type'` in `GmGM.dataset` for sparse array comparisons in older versions of python
+- Fixed `TypeError: unsupported operand type(s) for |: 'type' and 'type'` in `presparse_methods` for list/int comparisons in older versions of python
+- Fixed `direct_svd` `k` parameter having no effect
 
 ## v0.0.3 (2023/12/11)
 
