@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.0.4 (2023/12/11)
+
+## Fixes
+- Fixed `TypeError: unsupported operand type(s) for |: 'type' and 'type'` in `GmGM.dataset` for sparse array comparisons in older versions of python
+
 ## v0.0.3 (2023/12/11)
 
 ## Dependencies

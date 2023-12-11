@@ -4,3 +4,4 @@ src/GmGM/extras/__pycache__/*
 dist/*
 
 package-upload-cheatsheet.txt
+examples/data/*

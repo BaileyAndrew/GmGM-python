@@ -5,7 +5,7 @@ from scipy.stats import invwishart, wishart
 from scipy.stats import multivariate_normal
 from scipy.linalg import toeplitz
 
-from typing import Optional, TypeAlias, Callable
+from typing import Optional, Callable, Literal
 from .typing import Modality, Axis
 
 # TODO: Move over to generating Dataset objects
@@ -123,7 +123,6 @@ def add_like_kron_sum(
 ============================================================
 ==================== GENERATE DATA =========================
 ============================================================
-TODO CONSIDER: Move to Fortran
 """
 
 def fast_ks_normal(
@@ -242,7 +241,7 @@ def generate_Psis(
     ds: dict[str, tuple[int]],
     *,
     sparsities: dict[str, float],
-    gen_type: "bernoulli or invwishart" = "bernoulli"
+    gen_type: Literal["bernoulli", "invwishart"] = "bernoulli"
 ) -> dict[str, np.ndarray]:
     """
     Inputs:

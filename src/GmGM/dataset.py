@@ -267,7 +267,7 @@ def array_bytes(
         )
     
     # Input handling for various sparse array types
-    if isinstance(arr, sparse.csr_array | sparse.csc_array):
+    if isinstance(arr, sparse.csr_array) | isinstance(arr, sparse.csc_array):
         return (
             arr.data.nbytes
             + arr.indices.nbytes

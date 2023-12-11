@@ -24,6 +24,9 @@ The first step is to express your dataset as a "Dataset" object.
 
 ## Roadmap
 
-- [ ] Add direct support for AnnData and MuData objects (so that converson to "Dataset" is not needed)
+- [ ] Add direct support for AnnData and MuData objects (so that converson to `Dataset` is not needed)
 - [ ] Stabilize API
 - [ ] Add comprehensive docs
+- [ ] Have `generate_data` directly generate `Dataset` objects
+- [ ] Add conda distribution
+- [ ] Add example notebook
