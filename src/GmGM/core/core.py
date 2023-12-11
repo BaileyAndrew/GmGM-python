@@ -48,7 +48,7 @@ def direct_svd(
     X.es[first_axis] = Lambda
     X.es[second_axis] = Lambda
 
-def calculate_evalues(
+def calculate_eigenvectors(
     X: Dataset,
     verbose: bool = False,
     **params
@@ -109,7 +109,7 @@ def calculate_evalues(
 
     return X
 
-def GmGM(
+def calculate_eigenvalues(
     X: Dataset,
     *,
     max_small_steps: int = 5,
