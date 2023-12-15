@@ -1,8 +1,13 @@
 # Changelog
 
+## v0.0.8 (2023/12/15)
+
+### Improvements
+- Readme gives example of how to create an environment
+
 ## v0.0.7 (2023/12/11)
 
-## Improvements
+### Improvements
 - Readme examples now all have import statements too
 
 ### Fixes
