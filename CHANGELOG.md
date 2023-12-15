@@ -4,6 +4,7 @@
 
 ### Improvements
 - Readme gives example of how to create an environment
+- `example.ipynb` has install directions at top now
 
 ## v0.0.7 (2023/12/11)
 
