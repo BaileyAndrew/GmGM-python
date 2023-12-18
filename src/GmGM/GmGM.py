@@ -5,7 +5,7 @@ from __future__ import annotations
 
 # Import core functionality of GmGM
 from .core.core import direct_svd, calculate_eigenvalues, calculate_eigenvectors
-from .core.preprocessing import center, create_gram_matrices
+from .core.preprocessing import center, clr_prost, create_gram_matrices
 from .core.presparse_methods import recompose_sparse_precisions
 
 # Used for typing
@@ -29,7 +29,7 @@ def GmGM(
     batch_size: Optional[int] = None,
     verbose: bool = False,
     # `center` parameters
-    use_centering: bool = True,
+    centering_method: Optional[Literal["avg-overall", "clr-prost"]] = None,
     # `create_gram_matrices` parameters
     use_nonparanormal_skeptic: bool = False,
     # `calculate_eigenvectors` parameters
@@ -66,23 +66,41 @@ def GmGM(
     _dataset.random_state = random_state
 
     # Center dataset
-    if use_centering:
+    if centering_method == "clr-prost":
+        clr_prost(_dataset)
+    elif centering_method == "avg-overall":
         center(_dataset)
+    
+    # Check if the dataset is unimodal, in such a case, we can skip the gram matrix calculation
+    # Bringing memory usage down from O(n^2) to O(n)
+    # For now requires dataset to be matrix-variate; use of hosvd may extend this?
+    # In my experience it only speeds you up if you are looking at n_components!
+    unimodal: bool = len(_dataset.dataset) == 1
+    matrix_variate: bool = _dataset.dataset[list(_dataset.dataset.keys())[0]].ndim == 2
+    if unimodal and matrix_variate and n_comps is not None:
+        # Calculate eigenvectors
+        direct_svd(
+            _dataset,
+            n_comps=n_comps,
+            random_state=random_state,
+        )
+    # If dataset is multi-modal or is tensor-variate, we need to calculate the gram matrices
+    # An O(n^2) memory operation
+    else:
+        # Create Gram matrices
+        create_gram_matrices(
+            _dataset,
+            use_nonparanormal_skeptic=use_nonparanormal_skeptic,
+            batch_size=batch_size
+        )
 
-    # Create Gram matrices
-    create_gram_matrices(
-        _dataset,
-        use_nonparanormal_skeptic=use_nonparanormal_skeptic,
-        batch_size=batch_size
-    )
-
-    # Calculate eigenvectors
-    calculate_eigenvectors(
-        _dataset,
-        n_comps=n_comps,
-        random_state=random_state,
-        verbose=verbose
-    )
+        # Calculate eigenvectors
+        calculate_eigenvectors(
+            _dataset,
+            n_comps=n_comps,
+            random_state=random_state,
+            verbose=verbose
+        )
 
     # Calculate eigenvalues
     calculate_eigenvalues(

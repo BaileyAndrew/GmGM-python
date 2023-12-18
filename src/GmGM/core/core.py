@@ -11,6 +11,9 @@ from ..typing import Axis, Modality
 from ..numbafied import project_inv_kron_sum, sum_log_sum
 import numpy as np
 import dask.array as da
+import scipy.sparse as sparse
+
+import warnings
 
 # TODO: Figure out what to do with these
 from ..extras.regularizers import Regularizer
@@ -18,28 +21,68 @@ from ..extras.prior import Prior
 
 def direct_svd(
     X: Dataset,
-    n_comps: int = 200,
+    n_comps: Optional[int] = None,
     n_power_iter: int = 4,
     n_over_samples: int = 100,
     random_state: Optional[int] = None
 ) -> Dataset:
     """
     Assumes Dataset is a single matrix
+
+    Split into four cases:
+    (sparse, truncated)
+    (sparse, not truncated)
+    (dense, truncated)
+    (dense, not truncated)
     """
     if len(X.dataset) != 1:
         raise ValueError("Dataset must be a single matrix")
     
-    V_1, Lambda, V_2 = da.linalg.svd_compressed(
-        X.dataset[list(X.dataset.keys())[0]],
-        k=n_comps,
-        compute=True,
-        n_power_iter=4,
-        n_oversamples=100,
-        seed=random_state
-    )
-    Lambda = (Lambda**2).compute()
-    V_1 = V_1.compute()
-    V_2 = V_2.T.compute()
+    dataset = X.dataset[list(X.dataset.keys())[0]]
+    if n_comps is not None:
+        if sparse.issparse(dataset):
+            V_1, Lambda, V_2 = sparse.linalg.svds(
+                dataset,
+                k=n_comps,
+                random_state=random_state
+            )
+            Lambda = Lambda**2
+            V_2 = V_2.T
+        else:
+            if not isinstance(dataset, da.Array):
+                dataset = da.from_array(dataset)
+            V_1, Lambda, V_2 = da.linalg.svd_compressed(
+                dataset,
+                k=n_comps,
+                compute=True,
+                n_power_iter=4,
+                n_oversamples=100,
+                seed=random_state
+            )
+            Lambda = (Lambda**2).compute()
+            V_1 = V_1.compute()
+            V_2 = V_2.T.compute()
+    else:
+        if sparse.issparse(dataset):
+            warnings.warn(
+                "Dataset was sparse but need density to compute all svds,"
+                + " consider using the `n_comps` parameter."
+                + "  Converting to dense array..."
+            )
+            dataset = dataset.toarray()
+            if not isinstance(dataset, da.Array):
+                dataset = da.from_array(dataset)
+            V_1, Lambda, V_2 = da.linalg.svd(dataset)
+            Lambda = Lambda**2
+            V_2 = V_2.T
+            print(V_1.shape, Lambda.shape, V_2.shape)
+        else:
+            if not isinstance(dataset, da.Array):
+                dataset = da.from_array(dataset)
+            V_1, Lambda, V_2 = da.linalg.svd(dataset)
+            Lambda = (Lambda**2).compute()
+            V_1 = V_1.compute()
+            V_2 = V_2.T.compute()
 
     first_axis, second_axis = list(X.structure.values())[0]
 

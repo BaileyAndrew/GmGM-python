@@ -1,7 +1,7 @@
 from .dataset import Dataset
 from .GmGM import GmGM
 from .core.core import direct_svd, calculate_eigenvalues, calculate_eigenvectors
-from .core.preprocessing import center, create_gram_matrices
+from .core.preprocessing import center, clr_prost, create_gram_matrices
 from .core.presparse_methods import recompose_sparse_precisions
 
 __all__ = [
@@ -11,6 +11,7 @@ __all__ = [
     "calculate_eigenvalues",
     "calculate_eigenvectors",
     "center",
+    "clr_prost",
     "create_gram_matrices",
     "recompose_sparse_precisions",
 ]

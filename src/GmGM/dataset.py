@@ -278,11 +278,11 @@ class Dataset:
         matrix = data.X
         if use_highly_variable and 'highly_variable' in data.var.keys():
             matrix = data[:, data.var.highly_variable].X
-        if sparse.issparse(matrix):
-            matrix = matrix.toarray()
+        #if sparse.issparse(matrix):
+        #    matrix = matrix.toarray()
         dataset = Dataset(
             dataset={
-                "AnnData" : da.from_array(matrix)
+                "AnnData" : matrix#da.from_array(matrix)
             },
             structure={
                 "AnnData": ("obs", "var")

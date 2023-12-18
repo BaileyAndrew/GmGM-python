@@ -1,10 +1,18 @@
 # Changelog
 
-## v0.1.1 (2023/12/??)
+## v0.1.1 (2023/12/18)
 TODO CHANGE DATE
 
 ### Documentation
 - Updated ReadMe to explain how to get results from `Dataset` object.
+- Minor updates to `danio_rerio.ipynb` to demonstrate new changes.
+
+### Improvements
+- Allowed selection of multiple centering operations in `GmGM` (`avg-overall` [old way], `clr_prost`, and None)
+- Added `clr_prost` method based on "A zero inflated log-normal model for inference of sparse microbial association networks" by Prost et al.
+- `GmGM` now detects if your dataset is unimodal matrix-variate, and if so takes the `direct_svd` shortcut
+- `direct_svd` allows `n_comps` to be `None`, which will find all singular values (although this turns out to be slower than doing it the old way...)
+- `GmGM` now tries to preserve sparsity for as long as possible
 
 ## v0.1.0 (2023/12/18)
 

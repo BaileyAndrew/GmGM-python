@@ -12,19 +12,62 @@ from typing import Optional
 from ..dataset import Dataset
 from ..typing import Axis
 import scipy.stats as stats
+import scipy.sparse as sparse
 import numpy as np
+
+import warnings
 
 def center(
     X: Dataset
 ) -> Dataset:
     """
+    'centers' the dataset by subtracting each dataset's mean value
+    Note: not row-mean or column-mean, but overall mean.
+
     Modifies X in place
     """
 
     for modality in X.dataset.keys():
+        if sparse.issparse(X.dataset[modality]):
+            warnings.warn(
+                "Dataset was sparse but `avg-overall` centering will desparsify it,"
+                + " consider using a different centering method."
+                + "  Converting to dense array..."
+            )
+            X.dataset[modality] = X.dataset[modality].toarray()
         X.dataset[modality] -= X.dataset[modality].mean()
 
     return X
+
+def clr_prost(
+    X: Dataset,
+) -> Dataset:
+    """
+    Takes the modified clr as described in
+    "A zero inflated log-normal model for inference of sparse microbial association networks"
+    by Prost et al. (2021)
+
+    Don't use on already-logp1 transformed data
+
+    Involves taking mean of all axes other than the first
+
+    Modifies X in place
+    """
+
+    for modality in X.dataset.keys():
+        dataset = X.dataset[modality]
+        if not sparse.issparse(dataset):
+            axes = tuple(range(1, len(dataset.shape)))
+            dataset[dataset != 0] = np.log(dataset[dataset != 0])
+            dataset -= np.sum(dataset, axis=axes, keepdims=True) / np.count_nonzero(dataset, axis=axes, keepdims=True)
+        else:
+            dataset = dataset.tocoo()
+            dataset.data = np.log(dataset.data)
+            dataset = dataset.tocsr()
+            nonzero = dataset.nonzero()
+            dataset[nonzero] -= (dataset.sum(axis=1).A1 / dataset.getnnz(axis=1))[nonzero[0]]
+
+        X.dataset[modality] = dataset
 
 def create_gram_matrices(
     X: Dataset,
@@ -44,6 +87,15 @@ def create_gram_matrices(
         for idx, axis in enumerate(X.structure[modality]):
             if axis in X.batch_axes:
                 continue
+
+            if sparse.issparse(tensor):
+                warnings.warn(
+                    "Dataset was sparse but `create_gram_matrices` will desparsify it."
+                    + "  This may be avoidable if you set the `n_comps` when calling `GmGM`."
+                    + "  Converting to dense array..."
+                )
+                tensor = tensor.toarray()
+                X.dataset[modality] = tensor
 
             matricized: np.ndarray = np.reshape(
                 np.moveaxis(tensor, idx, 0),

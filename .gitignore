@@ -5,3 +5,5 @@ dist/*
 
 package-upload-cheatsheet.txt
 examples/data/*
+
+.vscode/*
