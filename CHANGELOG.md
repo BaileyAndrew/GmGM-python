@@ -22,6 +22,9 @@
 - `direct_svd` has its `k` parameter replaced with an `n_comps` parameter to follow the ScanPy API.
 - `direct_svd` has its `seed` parameter replaced with a `random_state` parameter to follow toe ScanPy API.
 
+### Dependencies
+- Added AnnData and MuData as optional dependencies
+
 ## v0.0.8 (2023/12/15)
 
 ### Improvements

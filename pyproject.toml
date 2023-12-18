@@ -31,3 +31,7 @@ dependencies = [
 [project.urls]
 "Homepage" = "https://github.com/BaileyAndrew/GmGM-python"
 "Bug Tracker" = "https://github.com/BaileyAndrew/GmGM-python/issues"
+
+[project.optional-dependencies]
+anndata = ["anndata"]
+mudata = ["mudata"]
