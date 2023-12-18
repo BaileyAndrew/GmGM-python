@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.1.0 (2023/12/18)
+
+### Improvements
+- Created new method `GmGM` which wraps the standard workflow (`center` -> `create_gram_matrices` -> `calculate_eigenvectors` -> `calculate_eigenvalues` -> `recompose_precision_matrices`)
+
+### API Changes
+- `grammify` -> `create_gram_matrices`
+- `calculate_eigenvectors` now has explicit `random_state` parameter; previously was controlled by `params[seed]`
+- `calculate_eigenvectors` now has explicit `n_comps` parameter; previously was controlled by `params[k]`
+- `calculate_eigenvectors` no longer has a `full` parameter, as full eigendecomposition is assumed if `n_comps` is `None`.
+- `direct_svd` has its `k` parameter replaced with an `n_comps` parameter to follow the ScanPy API.
+
 ## v0.0.8 (2023/12/15)
 
 ### Improvements

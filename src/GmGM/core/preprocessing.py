@@ -26,7 +26,7 @@ def center(
 
     return X
 
-def grammify(
+def create_gram_matrices(
     X: Dataset,
     batch_size: Optional[int] = None,
     use_nonparanormal_skeptic: bool = False

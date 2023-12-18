@@ -18,7 +18,7 @@ from ..extras.prior import Prior
 
 def direct_svd(
     X: Dataset,
-    k: int = 200,
+    n_comps: int = 200,
     n_power_iter: int = 4,
     n_over_samples: int = 100,
     seed: Optional[int] = None
@@ -31,7 +31,7 @@ def direct_svd(
     
     V_1, Lambda, V_2 = da.linalg.svd_compressed(
         X.dataset[list(X.dataset.keys())[0]],
-        k=k,
+        k=n_comps,
         compute=True,
         n_power_iter=4,
         n_oversamples=100,
@@ -51,7 +51,8 @@ def direct_svd(
 def calculate_eigenvectors(
     X: Dataset,
     verbose: bool = False,
-    full: bool = True,
+    n_comps: Optional[int] = None,
+    random_state: Optional[int] = None,
     **params
 ) -> Dataset:
     # Initialize the gram matrices
@@ -72,10 +73,10 @@ def calculate_eigenvectors(
     for axis, gram_matrix in grams.items():
         if verbose:
             print(f"Calculating eigenvalues for {axis=}")
-        if not full:
+        if n_comps is not None:
             if not isinstance(gram_matrix, da.Array):
                 gram_matrix = da.from_array(gram_matrix)
-            _, s, eigenvectors = da.linalg.svd_compressed(gram_matrix, **params)
+            _, s, eigenvectors = da.linalg.svd_compressed(gram_matrix, seed=random_state, k=n_comps, **params)
             eigenvalues = s**2
             eigenvectors = eigenvectors.compute().T
             eigenvalues = eigenvalues.compute()
