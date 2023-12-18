@@ -28,6 +28,8 @@ This package works on any dataset that can be expressed as multiple tensors of a
 
 ## Usage
 
+For an example, we recommend looking at the `danio_rerio.ipynb` notebook.
+
 ### With AnnData
 
 If you already have your data stored as an AnnData object, GmGM can be used directly.  Suppose you had a single-cell RNA sequencing dataset `scRNA`.
@@ -43,6 +45,9 @@ GmGM(
 ```
 
 `"obs": 10` tells the algorithm to keep 10 edges per cell (the 'obs' axis of AnnData) and `"var": 10` tells the algorithm to keep 10 edges per gene (the 'var' axis of AnnData).
+
+This modifies the AnnData object in place, storing the resultant graphs in `scRNA.obsp["obs_gmgm_connectivities"]` and `scRNA.varp["var_gmgm_connectivities"]`.
+
 
 ### With MuData
 
@@ -81,53 +86,6 @@ GmGM(
 
 `to_keep` tells the algorithm how many edges to keep per cell/gene/peak.
 
-### Nitty-gritty
-
-If you want to delve into the specifics of the algorithm, you can read here.  However, for most use cases there would be no reason to!
-
-The basic form of the algorithm is as follows:
-1) Create gram matrices (either by `center`ing and `grammifying` or using the nonparanormal skeptic)
-2) Analytically `calculate_eigenvectors`
-3) Iteratively `calculate_eigenvalues`
-4) Recompose your precision matrices, and threshold them to be sparse (can be done in one go as `recompose_sparse_precisions` to prevent unnecessary memory use
-
-```python
-from GmGM.core.preprocessing import center, grammify
-from GmGM.core.core import calculate_eigenvectors, calculate_eigenvalues
-from GmGM.core.presparse_methods import recompose_sparse_precisions
-
-center(dataset)
-grammify(dataset)
-calculate_eigenvectors(dataset, seed=RANDOM_STATE)
-calculate_eigenvalues(dataset)
-recompose_sparse_precisions(
-    dataset,
-    to_keep=N_NEIGHBORS,
-    threshold_method='rowwise-col-weighted',
-    batch_size=1000
-)
-```
-
-This has quadratic memory due to the computation of the Gram matrices.  When you only have a single matrix as input, you can skip this step using `direct_svd`, leading to linear memory use by directly producing the right eigenvectors from the raw data!
-
-```python
-from GmGM.dataset import Dataset
-from GmGM.core.preprocessing import center
-from GmGM.core.core import direct_svd, calculate_eigenvalues
-from GmGM.core.presparse_methods import recompose_sparse_precisions
-
-center(dataset)
-direct_svd(dataset, k=N_COMPONENTS, seed=RANDOM_STATE)
-calculate_eigenvalues(dataset)
-recompose_sparse_precisions(
-    dataset,
-    to_keep=N_NEIGHBORS,
-    threshold_method='rowwise-col-weighted',
-    batch_size=1000
-)
-```
-
-All these functions are updating `dataset` in-place; the computed precision matrices are available through the `precision_matrices` attribute of `dataset`.  This is a dictionary which you index by axis name, i.e. `dataset.precision_matrices['cell']`.
 
 ## Roadmap
 
@@ -138,3 +96,6 @@ All these functions are updating `dataset` in-place; the computed precision matr
 - [ ] Have `generate_data` directly generate `Dataset` objects
 - [ ] Add conda distribution
 - [x] Add example notebook
+- [ ] Make sure regularizers still work
+- [ ] Make sure priors still work
+- [ ] Make sure covariance thresholding trick still works

@@ -4,6 +4,7 @@
 
 ### Documentation
 - Created `danio_rerio.ipynb` as an example notebook to show off both a minimal example and a way to work on more complicated multi-matrix datasets
+- Updated ReadMe to use simpler API
 
 ### Improvements
 - Created new function `GmGM` which wraps the standard workflow (`center` -> `create_gram_matrices` -> `calculate_eigenvectors` -> `calculate_eigenvalues` -> `recompose_precision_matrices`)
