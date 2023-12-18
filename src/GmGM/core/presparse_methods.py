@@ -10,7 +10,7 @@ preserving sparsity.
 """
 
 from __future__ import annotations
-from typing import Literal
+from typing import Literal, Optional
 import warnings
 
 from ..typing import DataTensor
@@ -172,7 +172,7 @@ def recompose_sparse_precisions(
     X: Dataset,
     to_keep: float | int | dict[Axis, float | int],
     threshold_method: Literal["overall", "rowwise", "rowwise-col-weighted"] = "overall",
-    batch_size: int = 100,
+    batch_size: Optional[int] = None,
     verbose: bool = False
 ) -> Dataset:
     """
@@ -237,13 +237,16 @@ def recompose_sparse_precisions(
 def _estimate_sparse_gram(
     matrix: DataTensor,
     percent_to_keep: float,
-    batch_size: int = 1,
+    batch_size: Optional[int] = None,
     divide_by_diagonal: bool = False,
     verbose: bool = False
 ) -> sparse.sparray:
     """
     Computes matrix @ matrix.T in a sparse manner.
     """
+
+    if batch_size is None:
+        batch_size = min(matrix.shape[0], 1000)
 
     assert percent_to_keep >= 0 and percent_to_keep <= 1, \
         "`percent_to_keep` must be between 0 and 1"
@@ -365,12 +368,15 @@ def _estimate_sparse_gram(
 def _estimate_sparse_gram_per_row(
     matrix: DataTensor,
     per_row_to_keep: float,
-    batch_size: int = 1,
+    batch_size: Optional[int] = None,
     verbose: bool = False
 ) -> sparse.sparray:
     """
     Computes matrix @ matrix.T in a sparse manner.
     """
+
+    if batch_size is None:
+        batch_size = min(matrix.shape[0], 1000)
 
     assert per_row_to_keep >= 0 and per_row_to_keep <= matrix.shape[0], \
         "`per_row_to_keep` must be between 0 and the number of features"
@@ -448,12 +454,15 @@ def _estimate_sparse_gram_per_row(
 def _estimate_sparse_gram_per_row_col_weighted(
     matrix: DataTensor,
     per_row_to_keep: float,
-    batch_size: int = 1,
+    batch_size: Optional[int] = None,
     verbose: bool = False
 ) -> sparse.sparray:
     """
     Computes matrix @ matrix.T in a sparse manner.
     """
+
+    if batch_size is None:
+        batch_size = min(matrix.shape[0], 1000)
 
     assert per_row_to_keep >= 0 and per_row_to_keep <= matrix.shape[0], \
         "`per_row_to_keep` must be between 0 and the number of features"
@@ -568,13 +577,16 @@ def _estimate_sparse_gram_per_row_col_weighted(
 def _estimate_sparse_nonparanormal_skeptic(
     matrix: DataTensor,
     percent_to_keep: float,
-    batch_size: int = 1,
+    batch_size: Optional[int] = None,
     divide_by_diagonal: bool = True,
     verbose: bool = False
 ) -> sparse.sparray:
     """
     Computes matrix @ matrix.T in a sparse manner.
     """
+
+    if batch_size is None:
+        batch_size = min(matrix.shape[0], 1000)
 
     assert percent_to_keep >= 0 and percent_to_keep <= 1, \
         "`percent_to_keep` must be between 0 and 1"

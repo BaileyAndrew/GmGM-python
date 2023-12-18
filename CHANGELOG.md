@@ -2,8 +2,16 @@
 
 ## v0.1.0 (2023/12/18)
 
+### Documentation
+- Created `danio_rerio.ipynb` as an example notebook to show off both a minimal example and a way to work on more complicated multi-matrix datasets
+
 ### Improvements
-- Created new method `GmGM` which wraps the standard workflow (`center` -> `create_gram_matrices` -> `calculate_eigenvectors` -> `calculate_eigenvalues` -> `recompose_precision_matrices`)
+- Created new function `GmGM` which wraps the standard workflow (`center` -> `create_gram_matrices` -> `calculate_eigenvectors` -> `calculate_eigenvalues` -> `recompose_precision_matrices`)
+- `GmGM` accepts `AnnData` objects
+- Created new class method `Dataset.from_AnnData` to create a `Dataset` from an `AnnData` object
+- Created an instance method `Dataset.to_AnnData` to recover an `AnnData` object from a `Dataset` created with `AnnData`; the recovered `AnnData` will have `obsp` and `varp` attributes containing the recovered graphs
+- The functions/classes `Dataset`, `GmGM`, `center`, `create_gram_matrices`, `direct_svd`, `calculate_eigenvectors`, `calculate_eigenvalues`, and `recompose_sparse_precisions` are all available as top-level imports (`from GmGM import Dataset`).
+- Functions in `presparse_methods.py` can accept a batch size of `None`, which defaults to smallest of either the size of the dataset or 1000
 
 ### API Changes
 - `grammify` -> `create_gram_matrices`
@@ -11,6 +19,7 @@
 - `calculate_eigenvectors` now has explicit `n_comps` parameter; previously was controlled by `params[k]`
 - `calculate_eigenvectors` no longer has a `full` parameter, as full eigendecomposition is assumed if `n_comps` is `None`.
 - `direct_svd` has its `k` parameter replaced with an `n_comps` parameter to follow the ScanPy API.
+- `direct_svd` has its `seed` parameter replaced with a `random_state` parameter to follow toe ScanPy API.
 
 ## v0.0.8 (2023/12/15)
 

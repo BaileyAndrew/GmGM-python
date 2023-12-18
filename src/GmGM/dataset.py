@@ -6,11 +6,22 @@ from __future__ import annotations
 
 from typing import Optional
 import numpy as np
+import dask.array as da
 import scipy.sparse as sparse
 
 from .typing import Modality, Axis, DataTensor
 from .extras.prior import Prior
 from .numbafied import extract_d_values
+
+# Optional dependencies
+try:
+    from anndata import AnnData
+except ImportError:
+    AnnData = None
+try:
+    from mudata import MuData
+except ImportError:
+    MuData = None
 
 class Dataset:
     def __init__(
@@ -66,6 +77,9 @@ class Dataset:
 
         # Make cached attributes for covariance subdivision
         self.cache()
+
+        # Initialize variable that stores random state
+        self.random_state: Optional[int] = None
 
     def memory_usage(self) -> tuple[int, int, int]:
         """
@@ -252,6 +266,91 @@ class Dataset:
         )
 
         return f"Dataset(\n{dataset_str}\n)\nAxes(\n{size_str}\n)"
+    
+    @classmethod
+    def from_AnnData(
+        cls,
+        data: AnnData,
+        use_highly_variable: bool = True
+    ) -> Dataset:
+        if AnnData is None:
+            raise ImportError("Please install AnnData to use this method.")
+        matrix = data.X
+        if use_highly_variable and 'highly_variable' in data.var.keys():
+            matrix = data[:, data.var.highly_variable].X
+        if sparse.issparse(matrix):
+            matrix = matrix.toarray()
+        dataset = Dataset(
+            dataset={
+                "AnnData" : da.from_array(matrix)
+            },
+            structure={
+                "AnnData": ("obs", "var")
+            }
+        )
+        dataset.base = data
+        dataset.base_use_highly_variable = use_highly_variable
+        return dataset
+    
+    def to_AnnData(
+        self,
+        key_added: str = "gmgm"
+    ) -> AnnData:
+        if AnnData is None:
+            raise ImportError("Please install AnnData to use this method.")
+        if self.base is None:
+            raise ValueError("This dataset was not created from an AnnData object.")
+        for axis in self.all_axes:
+            self.base.uns[f'{axis}_neighbors_{key_added}'] = {
+                'connectivities_key': f'{axis}_{key_added}_connectivities',
+                'distances_key': f'{axis}_{key_added}_connectivities',
+            }
+
+            self.base.uns[f'{axis}_neighbors_{key_added}']['params'] = {
+                'method': 'gmgm',
+                'random_state': self.random_state,
+            }
+            if axis == "obs":
+                self.base.obsp[f'{axis}_{key_added}_connectivities'] = \
+                    abs(self.precision_matrices[axis]).tocsr()
+            elif axis == "var" and self.base_use_highly_variable:
+                # Create empty full matrix
+                self.base.varp[f'{axis}_{key_added}_connectivities'] = \
+                    sparse.dok_array((self.base.shape[1], self.base.shape[1]))
+                
+                # Fill with highly variable connectivities
+                self.base.varp[f'{axis}_{key_added}_connectivities'][
+                    np.ix_(self.base.var.highly_variable, self.base.var.highly_variable)
+                ] = \
+                    abs(self.precision_matrices[axis])
+                
+                # Convert to an efficient matrix representation
+                self.base.varp[f'{axis}_{key_added}_connectivities'] = \
+                    self.base.varp[f'{axis}_{key_added}_connectivities'].tocsr()
+            elif axis == "var":
+                self.base.varp[f'{axis}_{key_added}_connectivities'] = \
+                    abs(self.precision_matrices[axis]).tocsr()
+            else:
+                raise ValueError(f"Invalid axis {axis}.  Something weird happened...")
+        return self.base
+    
+    @classmethod
+    def from_MuData(
+        cls,
+        data: MuData,
+        use_highly_variable: bool = True
+    ) -> Dataset:
+        raise NotImplementedError("This method has not yet been implemented.")
+    
+    def to_MuData(
+        self,
+        key_added: str = "gmgm"
+    ) -> MuData:
+        if MuData is None:
+            raise ImportError("Please install MuData to use this method.")
+        if self.base is None:
+            raise ValueError("This dataset was not created from a MuData object.")
+        return self.base
     
 def array_bytes(
     arr: np.ndarray | sparse.sparray

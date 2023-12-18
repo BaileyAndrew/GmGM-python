@@ -1,6 +1,7 @@
 """
 This file wraps the core functionality of the GmGM algorithm into a single function.
 """
+from __future__ import annotations
 
 # Import core functionality of GmGM
 from .core.core import direct_svd, calculate_eigenvalues, calculate_eigenvectors
@@ -8,20 +9,22 @@ from .core.preprocessing import center, create_gram_matrices
 from .core.presparse_methods import recompose_sparse_precisions
 
 # Used for typing
-from typing import Optional
+from typing import Optional, Literal
+from .typing import Axis
 from .dataset import Dataset
 from .extras.regularizers import Regularizer
 try:
-    from AnnData import AnnData
+    from anndata import AnnData
 except ImportError:
     AnnData = None
 try:
-    from MuData import MuData
+    from mudata import MuData
 except ImportError:
     MuData = None
 
 def GmGM(
     dataset: Dataset | AnnData,
+    to_keep: float | int | dict[Axis, float | int],
     random_state: Optional[int] = None,
     batch_size: Optional[int] = None,
     verbose: bool = False,
@@ -43,17 +46,24 @@ def GmGM(
     always_regularize: bool = False,
     check_overstep_each_iter: bool = False,
     # `recompose_sparse_positions` parameters
+    threshold_method: Literal["overall", "rowwise", "rowwise-col-weighted"] = "rowwise-col-weighted",
+    # from_AnnData/MuData parameters
+    use_highly_variable: bool = False,
+    key_added: str = "gmgm",
 ):
     """
     Performs GmGM on the given dataset.
     """
     # Convert AnnData/MuData to Dataset (if relevant)
     if AnnData is not None and isinstance(dataset, AnnData):
-        _dataset = Dataset.from_AnnData(dataset)
+        _dataset = Dataset.from_AnnData(dataset, use_highly_variable=use_highly_variable)
     elif MuData is not None and isinstance(dataset, MuData):
-        _dataset = Dataset.from_MuData(dataset)
+        _dataset = Dataset.from_MuData(dataset, use_highly_variable=use_highly_variable)
     else:
         _dataset = dataset
+
+    # Save the random state
+    _dataset.random_state = random_state
 
     # Center dataset
     if use_centering:
@@ -91,13 +101,18 @@ def GmGM(
     )
 
     # Recompose sparse precisions
-    recompose_sparse_precisions(_dataset)
+    recompose_sparse_precisions(
+        _dataset,
+        to_keep=to_keep,
+        threshold_method=threshold_method,
+        batch_size=batch_size
+    )
 
     # If was AnnData/MuData, return it
     if AnnData is not None and isinstance(dataset, AnnData):
-        return _dataset.base
+        return _dataset.to_AnnData(key_added=key_added)
     elif MuData is not None and isinstance(dataset, MuData):
-        return _dataset.base
+        return _dataset.to_MuData(key_added=key_added)
     
     # Otherwise, return a Dataset object
-    return dataset
+    return _dataset

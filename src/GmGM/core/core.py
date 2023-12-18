@@ -21,7 +21,7 @@ def direct_svd(
     n_comps: int = 200,
     n_power_iter: int = 4,
     n_over_samples: int = 100,
-    seed: Optional[int] = None
+    random_state: Optional[int] = None
 ) -> Dataset:
     """
     Assumes Dataset is a single matrix
@@ -35,7 +35,7 @@ def direct_svd(
         compute=True,
         n_power_iter=4,
         n_oversamples=100,
-        seed=seed
+        seed=random_state
     )
     Lambda = (Lambda**2).compute()
     V_1 = V_1.compute()
@@ -72,7 +72,7 @@ def calculate_eigenvectors(
 
     for axis, gram_matrix in grams.items():
         if verbose:
-            print(f"Calculating eigenvalues for {axis=}")
+            print(f"Calculating eigenvectors for {axis=}")
         if n_comps is not None:
             if not isinstance(gram_matrix, da.Array):
                 gram_matrix = da.from_array(gram_matrix)

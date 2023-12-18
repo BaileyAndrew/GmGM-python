@@ -28,10 +28,32 @@ This package works on any dataset that can be expressed as multiple tensors of a
 
 ## Usage
 
+### With AnnData
+
+If you already have your data stored as an AnnData object, GmGM can be used directly.  Suppose you had a single-cell RNA sequencing dataset `scRNA`.
+
+```python
+GmGM(
+    scRNA,
+    to_keep={
+        "obs": 10,
+        "var": 10,
+    }
+)
+```
+
+`"obs": 10` tells the algorithm to keep 10 edges per cell (the 'obs' axis of AnnData) and `"var": 10` tells the algorithm to keep 10 edges per gene (the 'var' axis of AnnData).
+
+### With MuData
+
+Native support for MuData is coming soon.
+
+### General Usage (i.e. Without AnnData/MuData)
+
 The first step is to express your dataset as a `Dataset` object.  Suppose you had a cells x genes scRNA matrix and cells x peaks scATAC matrix, then you could create a `Dataset` object like:
 
 ```python
-from GmGM.dataset import Dataset
+from GmGM import Dataset
 dataset: Dataset = Dataset(
     dataset={
         "scRNA": scRNA,
@@ -43,6 +65,25 @@ dataset: Dataset = Dataset(
     }
 )
 ```
+
+Running GmGM is then as simple as:
+
+```python
+GmGM(
+    dataset,
+    to_keep={
+        "cell": 10,
+        "gene": 10,
+        "peak": 10
+    }
+)
+```
+
+`to_keep` tells the algorithm how many edges to keep per cell/gene/peak.
+
+### Nitty-gritty
+
+If you want to delve into the specifics of the algorithm, you can read here.  However, for most use cases there would be no reason to!
 
 The basic form of the algorithm is as follows:
 1) Create gram matrices (either by `center`ing and `grammifying` or using the nonparanormal skeptic)
@@ -90,7 +131,8 @@ All these functions are updating `dataset` in-place; the computed precision matr
 
 ## Roadmap
 
-- [ ] Add direct support for AnnData and MuData objects (so that converson to `Dataset` is not needed)
+- [x] Add direct support for AnnData objects
+- [ ] Add direct support for MuData objects (so that converson to `Dataset` is not needed)
 - [ ] Stabilize API
 - [ ] Add comprehensive docs
 - [ ] Have `generate_data` directly generate `Dataset` objects
