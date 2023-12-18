@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.1.1 (2023/12/??)
+TODO CHANGE DATE
+
+### Documentation
+- Updated ReadMe to explain how to get results from `Dataset` object.
+
 ## v0.1.0 (2023/12/18)
 
 ### Documentation

@@ -86,6 +86,8 @@ GmGM(
 
 `to_keep` tells the algorithm how many edges to keep per cell/gene/peak.
 
+The final results are stored in `dataset.precision_matrices["cell"]`, `dataset.precision_matrices["gene"]`, and `dataset.precision_matrices["peak"]`, respectively.
+
 
 ## Roadmap
 
