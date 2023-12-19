@@ -7,7 +7,7 @@ This is a very early version so the API is subject to change.
 
 We recommend installing this package in a conda environment, by first running:
 ```bash
-conda create -n {YOUR ENVIRONMENT NAME} "python>=3.9"
+conda create -n {YOUR ENVIRONMENT NAME} "python>=3.9,<3.12"
 conda activate {YOUR ENVIROMENT NAME}
 ```
 

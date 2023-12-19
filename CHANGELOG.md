@@ -1,7 +1,11 @@
 # Changelog
 
+## v0.1.2 (2023/12/19)
+
+### Dependencies
+- Dropped support for Python 3.12 as Numba not compatible with Python 3.12
+
 ## v0.1.1 (2023/12/18)
-TODO CHANGE DATE
 
 ### Documentation
 - Updated ReadMe to explain how to get results from `Dataset` object.

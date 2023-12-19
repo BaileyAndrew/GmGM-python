@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "GmGM"
-version = "0.1.1"
+version = "0.1.2"
 description = "An implementation of the Gaussian multi-Graphical Model"
 authors = [
     { name = "Bailey Andrew", email = "sceba@leeds.ac.uk" }
@@ -16,11 +16,11 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
+    # "Programming Language :: Python :: 3.12", # numba does not support 3.12
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
-requires-python = ">=3.9" # Oldest supported python version with scipy 1.11
+requires-python = ">=3.9,<3.12" # Oldest supported python version with scipy 1.11
 dependencies = [
     "numpy>=1.23", # Oldest supported numpy version for 2024
     "dask>=2022.03", # First version drop support for Python 3.7
