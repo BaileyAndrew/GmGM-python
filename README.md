@@ -101,3 +101,5 @@ The final results are stored in `dataset.precision_matrices["cell"]`, `dataset.p
 - [ ] Make sure regularizers still work
 - [ ] Make sure priors still work
 - [ ] Make sure covariance thresholding trick still works
+- [ ] Add unit tests
+- [ ] Allow forcing subset of axes to have given precision matrices
