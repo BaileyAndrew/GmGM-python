@@ -4,7 +4,8 @@ This file wraps the core functionality of the GmGM algorithm into a single funct
 from __future__ import annotations
 
 # Import core functionality of GmGM
-from .core.core import direct_svd, calculate_eigenvalues, calculate_eigenvectors
+from .core.core import direct_svd, direct_left_eigenvectors
+from .core.core import calculate_eigenvalues, calculate_eigenvectors
 from .core.preprocessing import center, clr_prost, create_gram_matrices
 from .core.presparse_methods import recompose_sparse_precisions
 
@@ -21,6 +22,9 @@ try:
     from mudata import MuData
 except ImportError:
     MuData = None
+
+# For warnings
+import warnings
 
 def GmGM(
     dataset: Dataset | AnnData,
@@ -55,9 +59,11 @@ def GmGM(
     Performs GmGM on the given dataset.
     """
     # Convert AnnData/MuData to Dataset (if relevant)
-    if AnnData is not None and isinstance(dataset, AnnData):
+    is_anndata: bool = AnnData is not None and isinstance(dataset, AnnData)
+    is_mudata: bool = MuData is not None and isinstance(dataset, MuData)
+    if is_anndata:
         _dataset = Dataset.from_AnnData(dataset, use_highly_variable=use_highly_variable)
-    elif MuData is not None and isinstance(dataset, MuData):
+    elif is_mudata:
         _dataset = Dataset.from_MuData(dataset, use_highly_variable=use_highly_variable)
     else:
         _dataset = dataset
@@ -67,19 +73,37 @@ def GmGM(
 
     # Center dataset
     if centering_method == "clr-prost":
+        if is_anndata or is_mudata:
+            if 'log1p' in dataset.uns.keys():
+                warnings.warn(
+                    "Dataset was log1p-transformed; clr-prost expects raw compositional (such as count) data"
+                )
         clr_prost(_dataset)
     elif centering_method == "avg-overall":
         center(_dataset)
     
-    # Check if the dataset is unimodal, in such a case, we can skip the gram matrix calculation
-    # Bringing memory usage down from O(n^2) to O(n)
-    # For now requires dataset to be matrix-variate; use of hosvd may extend this?
-    # In my experience it only speeds you up if you are looking at n_components!
+    # We can skip the gram matrix calculation by doing SVD directly
+    # Bringing memory usage down from O(n^2) to O(n) if `n_comps`` is O(1)
+    # In my experience it slows you down if we want all eigenvectors, so
+    # we only do this if `n_comps`` is specified
     unimodal: bool = len(_dataset.dataset) == 1
-    matrix_variate: bool = _dataset.dataset[list(_dataset.dataset.keys())[0]].ndim == 2
+    matrix_variate: bool = all([
+        _dataset.dataset[key].ndim == 2
+        for key in _dataset.dataset.keys()
+    ])
+    # If dataset is a single matrix, then we can do SVD on said matrix
+    # to get the eigenvectors for both axes at once
     if unimodal and matrix_variate and n_comps is not None:
-        # Calculate eigenvectors
         direct_svd(
+            _dataset,
+            n_comps=n_comps,
+            random_state=random_state,
+        )
+    # If dataset is multi-modal or tensor-variate, we can find the left
+    # eigenvectors of the concatenation of the matricization of each modality
+    # on a given axis
+    elif n_comps is not None:
+        direct_left_eigenvectors(
             _dataset,
             n_comps=n_comps,
             random_state=random_state,

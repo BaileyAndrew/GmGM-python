@@ -100,7 +100,6 @@ def create_gram_matrices(
             matricized: np.ndarray = np.reshape(
                 np.moveaxis(tensor, idx, 0),
                 (tensor.shape[idx], -1),
-                #order='F'
             )
 
             if axis in X.gram_matrices:

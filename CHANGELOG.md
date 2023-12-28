@@ -1,5 +1,17 @@
 # Changelog
 
+## v0.2.0 (2023/12/28)
+
+### Improvements
+- `GmGM` with `clr-prost` will now raise a warning if pre-log-transformed AnnData or Mudata is passed in.
+- **`GmGM` now has linear memory use in the multi-modal and tensor-variate case when assuming sparsity and a small number of `n_comps`**
+- Created new function `direct_left_eigenvectors` to handle eigenvector computation in the multi-modal or tensor-variate case with small `n_comps`.
+- Added method `modalities_with_axis` to `Dataset` that will give you a list of all `(location, modality)` tuples where `modality` is a modality in your dataset containing `axis` at location `location`.
+
+### Fixes
+- `direct_svd` now returns `X` as the type hints previously claimed
+- Updated install directions within the examples to preclude Python 3.12
+
 ## v0.1.2 (2023/12/19)
 
 ### Dependencies

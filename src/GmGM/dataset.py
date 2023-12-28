@@ -352,6 +352,17 @@ class Dataset:
             raise ValueError("This dataset was not created from a MuData object.")
         return self.base
     
+    def modalities_with_axis(self, axis: Axis) -> list[int, Modality]:
+        """
+        Returns a list of modalities that have the given axis,
+        paired with the location of the axis in the modality
+        """
+        return [
+            (list(axes).index(axis), modality)
+            for modality, axes in self.structure.items()
+            if axis in axes
+        ]
+    
 def array_bytes(
     arr: np.ndarray | sparse.sparray
 ) -> float:

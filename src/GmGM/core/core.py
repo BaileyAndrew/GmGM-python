@@ -19,6 +19,56 @@ import warnings
 from ..extras.regularizers import Regularizer
 from ..extras.prior import Prior
 
+def direct_left_eigenvectors(
+    X: Dataset,
+    n_comps: Optional[int] = None,
+    n_power_iter: int = 4,
+    n_over_samples: int = 100,
+    random_state: Optional[int] = None
+) -> Dataset:
+    """
+    No assumptions on `X` but works best when `n_comps` is specified
+    """
+
+    if n_comps is None:
+        raise NotImplementedError("Need to specify `n_comps` for now")
+    
+    for axis in X.all_axes:
+        if axis in X.batch_axes:
+            continue
+        to_concat: list[da.Array] = []
+        for location, modality in X.modalities_with_axis(axis):
+            tensor = X.dataset[modality]
+            if sparse.issparse(tensor):
+                warnings.warn(
+                    "Dataset was sparse but `direct_left_eigenvectors` will desparsify it."
+                    + "  This will change eventually."
+                )
+                tensor = tensor.toarray()
+            matricized: da.array = da.from_array(np.reshape(
+                np.moveaxis(tensor, location, 0),
+                (tensor.shape[location], -1),
+            ))
+            to_concat.append(matricized)
+        full_matricized: da.array = da.concatenate(to_concat, axis=1)
+        V_1, Lambda, _ = da.linalg.svd_compressed(
+            full_matricized,
+            k=n_comps,
+            compute=True,
+            n_power_iter=4,
+            n_oversamples=100,
+            seed=random_state
+        )
+        Lambda = (Lambda**2).compute()
+        V_1 = V_1.compute()
+        X.evecs[axis] = V_1
+        X.es[axis] = Lambda
+
+    return X
+
+
+
+
 def direct_svd(
     X: Dataset,
     n_comps: Optional[int] = None,
@@ -27,7 +77,7 @@ def direct_svd(
     random_state: Optional[int] = None
 ) -> Dataset:
     """
-    Assumes Dataset is a single matrix
+    Assumes `X` is a single matrix
 
     Split into four cases:
     (sparse, truncated)
@@ -70,19 +120,12 @@ def direct_svd(
                 + "  Converting to dense array..."
             )
             dataset = dataset.toarray()
-            if not isinstance(dataset, da.Array):
-                dataset = da.from_array(dataset)
-            V_1, Lambda, V_2 = da.linalg.svd(dataset)
-            Lambda = Lambda**2
-            V_2 = V_2.T
-            print(V_1.shape, Lambda.shape, V_2.shape)
-        else:
-            if not isinstance(dataset, da.Array):
-                dataset = da.from_array(dataset)
-            V_1, Lambda, V_2 = da.linalg.svd(dataset)
-            Lambda = (Lambda**2).compute()
-            V_1 = V_1.compute()
-            V_2 = V_2.T.compute()
+        if not isinstance(dataset, da.Array):
+            dataset = da.from_array(dataset)
+        V_1, Lambda, V_2 = da.linalg.svd(dataset)
+        Lambda = (Lambda**2).compute()
+        V_1 = V_1.compute()
+        V_2 = V_2.T.compute()
 
     first_axis, second_axis = list(X.structure.values())[0]
 
@@ -90,6 +133,7 @@ def direct_svd(
     X.evecs[second_axis] = V_2
     X.es[first_axis] = Lambda
     X.es[second_axis] = Lambda
+    return X
 
 def calculate_eigenvectors(
     X: Dataset,
