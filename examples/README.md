@@ -21,7 +21,7 @@ Axes:
 - Rows
 - Columns
 
-## 10x Multiome scRNA+scATAC: Matrix-Variate Unimodal
+## 10x Multiome scRNA+scATAC: Matrix-Variate Multimodal
 
 Modalities:
 - scRNA (Cells x Genes)
