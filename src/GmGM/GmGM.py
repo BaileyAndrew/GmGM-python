@@ -54,6 +54,7 @@ def GmGM(
     # from_AnnData/MuData parameters
     use_highly_variable: bool = False,
     key_added: str = "gmgm",
+    use_abs_of_graph: bool = True,
 ):
     """
     Performs GmGM on the given dataset.
@@ -72,6 +73,8 @@ def GmGM(
     _dataset.random_state = random_state
 
     # Center dataset
+    if verbose:
+        print("Centering...")
     if centering_method == "clr-prost":
         if is_anndata or is_mudata:
             if 'log1p' in dataset.uns.keys():
@@ -81,7 +84,14 @@ def GmGM(
         clr_prost(_dataset)
     elif centering_method == "avg-overall":
         center(_dataset)
+    elif centering_method is None:
+        pass
+    else:
+        raise ValueError(f"Invalid centering method: {centering_method}")
     
+    # Calculate eigenvectors
+    if verbose:
+        print("Calculating eigenvectors...")
     # We can skip the gram matrix calculation by doing SVD directly
     # Bringing memory usage down from O(n^2) to O(n) if `n_comps`` is O(1)
     # In my experience it slows you down if we want all eigenvectors, so
@@ -94,6 +104,8 @@ def GmGM(
     # If dataset is a single matrix, then we can do SVD on said matrix
     # to get the eigenvectors for both axes at once
     if unimodal and matrix_variate and n_comps is not None:
+        if verbose:
+            print("\tby calculating SVD...")
         direct_svd(
             _dataset,
             n_comps=n_comps,
@@ -103,6 +115,8 @@ def GmGM(
     # eigenvectors of the concatenation of the matricization of each modality
     # on a given axis
     elif n_comps is not None:
+        if verbose:
+            print("\tby calculating left eigenvectors of concatenated matricizations...")
         direct_left_eigenvectors(
             _dataset,
             n_comps=n_comps,
@@ -111,6 +125,8 @@ def GmGM(
     # If dataset is multi-modal or is tensor-variate, we need to calculate the gram matrices
     # An O(n^2) memory operation
     else:
+        if verbose:
+            print("\tby calculating gram matrices and then eigendecomposing...")
         # Create Gram matrices
         create_gram_matrices(
             _dataset,
@@ -127,6 +143,8 @@ def GmGM(
         )
 
     # Calculate eigenvalues
+    if verbose:
+        print("Calculating eigenvalues...")
     calculate_eigenvalues(
         _dataset,
         max_small_steps=max_small_steps,
@@ -143,6 +161,8 @@ def GmGM(
     )
 
     # Recompose sparse precisions
+    if verbose:
+        print("Recomposing sparse precisions...")
     recompose_sparse_precisions(
         _dataset,
         to_keep=to_keep,
@@ -152,9 +172,16 @@ def GmGM(
 
     # If was AnnData/MuData, return it
     if AnnData is not None and isinstance(dataset, AnnData):
-        return _dataset.to_AnnData(key_added=key_added)
+        if verbose:
+            print("Converting back to AnnData...")
+        return _dataset.to_AnnData(key_added=key_added, use_abs_of_graph=use_abs_of_graph)
     elif MuData is not None and isinstance(dataset, MuData):
-        return _dataset.to_MuData(key_added=key_added)
+        if verbose:
+            print("Converting back to MuData...")
+        return _dataset.to_MuData(key_added=key_added, use_abs_of_graph=use_abs_of_graph)
+    
+    if verbose:
+        print("Done!")
     
     # Otherwise, return a Dataset object
     return _dataset

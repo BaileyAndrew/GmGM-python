@@ -229,6 +229,12 @@ def recompose_sparse_precisions(
         else:
             raise ValueError(f"{threshold_method} is not a valid thresholding method")
         
+        # Symmetricize precision matrix
+        X.precision_matrices[axis] = (
+            X.precision_matrices[axis]
+            + X.precision_matrices[axis].T
+        ) / 2
+        
     return X
 
 # ------------------------------------ #

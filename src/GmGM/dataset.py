@@ -4,7 +4,8 @@ Provides the Dataset class
 
 from __future__ import annotations
 
-from typing import Optional
+from typing import Optional, Literal
+import warnings
 import numpy as np
 import dask.array as da
 import scipy.sparse as sparse
@@ -278,8 +279,7 @@ class Dataset:
         matrix = data.X
         if use_highly_variable and 'highly_variable' in data.var.keys():
             matrix = data[:, data.var.highly_variable].X
-        #if sparse.issparse(matrix):
-        #    matrix = matrix.toarray()
+
         dataset = Dataset(
             dataset={
                 "AnnData" : matrix#da.from_array(matrix)
@@ -294,44 +294,43 @@ class Dataset:
     
     def to_AnnData(
         self,
-        key_added: str = "gmgm"
+        key_added: str = "gmgm",
+        use_abs_of_graph: bool = True
     ) -> AnnData:
         if AnnData is None:
             raise ImportError("Please install AnnData to use this method.")
         if self.base is None:
             raise ValueError("This dataset was not created from an AnnData object.")
-        for axis in self.all_axes:
-            self.base.uns[f'{axis}_neighbors_{key_added}'] = {
-                'connectivities_key': f'{axis}_{key_added}_connectivities',
-                'distances_key': f'{axis}_{key_added}_connectivities',
-            }
 
-            self.base.uns[f'{axis}_neighbors_{key_added}']['params'] = {
-                'method': 'gmgm',
-                'random_state': self.random_state,
-            }
-            if axis == "obs":
-                self.base.obsp[f'{axis}_{key_added}_connectivities'] = \
-                    abs(self.precision_matrices[axis]).tocsr()
-            elif axis == "var" and self.base_use_highly_variable:
-                # Create empty full matrix
-                self.base.varp[f'{axis}_{key_added}_connectivities'] = \
-                    sparse.dok_array((self.base.shape[1], self.base.shape[1]))
-                
-                # Fill with highly variable connectivities
-                self.base.varp[f'{axis}_{key_added}_connectivities'][
-                    np.ix_(self.base.var.highly_variable, self.base.var.highly_variable)
-                ] = \
-                    abs(self.precision_matrices[axis])
-                
-                # Convert to an efficient matrix representation
-                self.base.varp[f'{axis}_{key_added}_connectivities'] = \
-                    self.base.varp[f'{axis}_{key_added}_connectivities'].tocsr()
-            elif axis == "var":
-                self.base.varp[f'{axis}_{key_added}_connectivities'] = \
-                    abs(self.precision_matrices[axis]).tocsr()
-            else:
-                raise ValueError(f"Invalid axis {axis}.  Something weird happened...")
+        _add_graph_to_anndata(
+            self.base,
+            self.base_use_highly_variable,
+            "obs",
+            self.base.shape[0],
+            "obs",
+            key_added,
+            self.precision_matrices["obs"],
+            self.base.obs.highly_variable \
+                if "highly_variable" in self.base.obs \
+                else None,
+            use_abs_of_graph,
+            self.random_state
+        )
+        _add_graph_to_anndata(
+            self.base,
+            self.base_use_highly_variable,
+            "var",
+            self.base.shape[0],
+            "var",
+            key_added,
+            self.precision_matrices["var"],
+            self.base.var.highly_variable \
+                if "highly_variable" in self.base.obs \
+                else None,
+            use_abs_of_graph,
+            self.random_state
+        )
+
         return self.base
     
     @classmethod
@@ -340,16 +339,90 @@ class Dataset:
         data: MuData,
         use_highly_variable: bool = True
     ) -> Dataset:
-        raise NotImplementedError("This method has not yet been implemented.")
+        if MuData is None:
+            raise ImportError("Please install MuData to use this method.")
+        
+        # Is MuData concatenating along the features axis?
+        if data.axis == 0:
+            matrices: dict[Modality, np.ndarray] = {}
+            for modality in data.mod:
+                matrix = data[modality].X
+                if use_highly_variable and 'highly_variable' in data[modality].var.keys():
+                    matrix = data[modality][:, data[modality].var.highly_variable].X
+                matrices[modality] = matrix
+
+            dataset = Dataset(
+                dataset=matrices,
+                structure={
+                    modality: ("obs", f"{modality}-var")
+                    for modality in data.mod
+                }
+            )
+            dataset.base = data
+            dataset.base_use_highly_variable = use_highly_variable
+            return dataset
+        # Is MuData concatenating along the samples axis?
+        elif data.axis == 1:
+            raise NotImplementedError("Concatenating along the samples axis is not yet supported.")
+        # Is MuData concatenating along both axes?
+        elif data.axis == -1:
+            raise NotImplementedError("Concatenating along both axes is not yet supported.")
+        else:
+            raise ValueError(f"Invalid concatenation axis {data.axis}.")
     
     def to_MuData(
         self,
-        key_added: str = "gmgm"
+        key_added: str = "gmgm",
+        use_abs_of_graph: bool = True
     ) -> MuData:
         if MuData is None:
             raise ImportError("Please install MuData to use this method.")
         if self.base is None:
             raise ValueError("This dataset was not created from a MuData object.")
+        
+        # Is MuData concatenating along the features axis?
+        if self.base.axis == 0:
+            # First add the observations axis to the MuData object
+            _add_graph_to_anndata(
+                self.base,
+                self.base_use_highly_variable,
+                "obs",
+                self.base.shape[0],
+                "obs",
+                key_added,
+                self.precision_matrices["obs"],
+                self.base.obs.highly_variable \
+                    if "highly_variable" in self.base.obs \
+                    else None,
+                use_abs_of_graph,
+                self.random_state
+            )
+            
+            # Then, for each modality, add the features axis to the MuData object
+            for modality in self.base.mod:
+                _add_graph_to_anndata(
+                    self.base[modality],
+                    self.base_use_highly_variable,
+                    f"{modality}-var",
+                    self.base[modality].shape[1],
+                    "var",
+                    key_added,
+                    self.precision_matrices[f"{modality}-var"],
+                    self.base[modality].var.highly_variable \
+                        if "highly_variable" in self.base[modality].var \
+                        else None,
+                    use_abs_of_graph,
+                    self.random_state
+                )
+        # Is MuData concatenating along the samples axis?
+        elif self.base.axis == 1:
+            raise NotImplementedError("Concatenating along the samples axis is not yet supported.")
+        # Is MuData concatenating along both axes?
+        elif self.base.axis == -1:
+            raise NotImplementedError("Concatenating along both axes is not yet supported.")
+        else:
+            raise ValueError(f"Invalid concatenation axis {self.base.axis}.")
+        
         return self.base
     
     def modalities_with_axis(self, axis: Axis) -> list[int, Modality]:
@@ -391,3 +464,62 @@ def array_bytes(
         )
     else:
         return arr.nbytes
+    
+def _add_graph_to_anndata(
+    adata: AnnData | MuData,
+    use_highly_variable: bool,
+    axis: Axis,
+    axis_size: int,
+    obs_or_var: Literal["obs", "var"],
+    key_added: str,
+    graph: np.ndarray | sparse.sparray | sparse.spmatrix,
+    highly_variable_indices: Optional[np.ndarray] = None,
+    use_abs_of_graph: bool = True,
+    random_state: Optional[int] = None
+) -> AnnData | MuData:
+    
+    if use_abs_of_graph:
+        graph = abs(graph)
+    
+    adata.uns[f'{axis}_neighbors_{key_added}'] = {
+        'connectivities_key': f'{axis}_{key_added}_connectivities',
+        'distances_key': f'{axis}_{key_added}_connectivities',
+    }
+    adata.uns[f'{axis}_neighbors_{key_added}']['params'] = {
+        'method': 'gmgm',
+    }
+    if random_state is not None:
+        adata.uns[f'{axis}_neighbors_{key_added}']['params']['random_state'] = random_state
+
+    dictp: dict
+    if obs_or_var == "obs":
+        dictp = adata.obsp
+    elif obs_or_var == "var":
+        dictp = adata.varp
+    else:
+        raise ValueError(f"Invalid `obs_or_var`: {obs_or_var}")
+
+    if use_highly_variable and highly_variable_indices is None:
+        warnings.warn(
+            "`use_highly_variable` was set to True but no highly variable indices were provided"
+            + f" for axis '{axis}'.  Thus we will use all indices for this axis."
+        )
+
+    if use_highly_variable and highly_variable_indices is not None:
+        # Create empty full matrix
+        out_graph = sparse.coo_array((axis_size, axis_size))
+        
+        # Fill with highly variable connectivities
+        loc = np.where(highly_variable_indices)[0]
+        graph = graph.tocoo()
+        out_graph.data = graph.data
+        out_graph.row = loc[graph.row]
+        out_graph.col = loc[graph.col]
+        
+        # Convert to an efficient matrix representation
+        dictp[f'{axis}_{key_added}_connectivities'] = \
+            out_graph.tocsr()
+    else:
+        dictp[f'{axis}_{key_added}_connectivities'] = graph.tocsr()
+
+    return adata

@@ -1,16 +1,27 @@
 # Changelog
 
-## v0.2.0 (2023/12/28)
+## v0.2.0 (2023/12/29)
+
+### Documentation
+- Added `examples/README.md`, which contains a list of common (omics-motivated) use cases 
 
 ### Improvements
 - `GmGM` with `clr-prost` will now raise a warning if pre-log-transformed AnnData or Mudata is passed in.
 - **`GmGM` now has linear memory use in the multi-modal and tensor-variate case when assuming sparsity and a small number of `n_comps`**
 - Created new function `direct_left_eigenvectors` to handle eigenvector computation in the multi-modal or tensor-variate case with small `n_comps`.
 - Added method `modalities_with_axis` to `Dataset` that will give you a list of all `(location, modality)` tuples where `modality` is a modality in your dataset containing `axis` at location `location`.
+- Implemented `Dataset` methods `from_MuData` and `to_MuData`
+- `to/from_AnnData` now limits to highly variable `obs` as well as `var` if `use_highly_variable` is `True`.
+- `to/from_AnnData` now much faster and more memory efficient for large datasets if `use_highly_variable` is `True`.
+- `to/from_AnnData` can optionally not use the absolute value of the graph, with the `use_abs_of_graph` parameter.
+- Created notebook `single_cell_multiomics.ipynb` showing off how to use this dataset with a MuData object.
+- `GmGM` with `verbose=True` now gives more information about the computation path used.
 
 ### Fixes
-- `direct_svd` now returns `X` as the type hints previously claimed
-- Updated install directions within the examples to preclude Python 3.12
+- `direct_svd` now returns `X` as the type hints previously claimed.
+- Updated install directions within the examples to preclude Python 3.12.
+- `danio_rerio.ipynb` now respects `N_COMPONENTS` and `N_EDGES` parametrizations.
+- `recompose_sparse_precisions` now properly symmetricizes its output.
 
 ## v0.1.2 (2023/12/19)
 
