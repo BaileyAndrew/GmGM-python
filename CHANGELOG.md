@@ -20,6 +20,7 @@
 - Removed some greek letters from code (`Ψ`->`Psi`, `Λ`->`Lambda`) in `validation.py.`
 - Replaced occurances of `isinstance(___, float) | isinstance(___, int)` with `isinstance(___, numbers.Real)` to handle cases when the pased in value is something like `np.int16`.
 - **Fixed the numba-compiled functions being very slow (slower than the python version!!)**.  This was likely due to a bug in numba; if `parallel=true` then, if `GmGM` was run several times, `project_inv_kron_sum` would get slower and slower...  Very weird!  Fixed by removing parallelism; its not needed, these functions are nowhere near the bottleneck for large datasets.
+- `GmGM.synthetic.measure_prec_recall` works properly.
 
 ## v0.2.0 (2023/12/29)
 

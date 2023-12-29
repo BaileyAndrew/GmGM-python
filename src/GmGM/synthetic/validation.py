@@ -220,8 +220,8 @@ def plot_prec_recall(
     return fig, ax
 
 def generate_confusion_matrices(
-    pred: np.ndarray,
-    truth: np.ndarray,
+    pred: sparse.sparray,
+    truth: sparse.sparray,
     eps: float = 0,
     mode: Literal[
         '<Tolerance',
@@ -242,16 +242,20 @@ def generate_confusion_matrices(
     pred = binarize_matrix(pred, eps=eps, mode=mode_pred)
     truth = binarize_matrix(truth, eps=0, mode=mode_truth)
     
-    # Identity matrices to remove diagonals
-    In = np.eye(pred.shape[0])
+    # Remove diagonals to prevent counting them in true positives
+    pred.setdiag(0)
+    truth.setdiag(0)
+
+    pred = pred.tocsr()
+    truth = truth.tocsr()
     
-    np.fill_diagonal(pred, 1)
-    np.fill_diagonal(truth, 1)
-    
-    TP = (pred * truth - In).sum()
-    FP = (pred * (1 - truth)).sum()
-    TN = ((1 - pred) * (1 - truth)).sum()
-    FN = ((1 - pred) *  truth).sum()
+    TP = (pred * truth).sum()
+    # pred * !truth
+    FP = (pred - pred * truth).sum()
+    # !pred * !truth
+    TN = np.prod(pred.shape) - pred.shape[0] - (pred + truth + pred * truth).sum()
+    # !pred * truth
+    FN = (truth - pred * truth).sum()
     
     return np.array([
         [TP, FP],
@@ -288,18 +292,22 @@ def binarize_matrix(
     """
     Returns M but with only ones and zeros
     """
-    out = np.empty(M.shape)
-    if mode == '<Tolerance' or mode == 'Nonzero':
-        out[np.abs(M) <= eps] = 0
-        out[np.abs(M) > eps] = 1
+    if not sparse.issparse(M):
+        # Convert to sparse array
+        M = sparse.coo_matrix(M)
+    out = M.copy().tocoo()
+    out.data = np.ones_like(out.data)
+    out = out.astype(np.int8)
+    if mode == "Nonzero":
+        pass
+    elif mode == '<Tolerance':
+        out.data[np.abs(out.data) <= eps] = 0
     elif mode == 'Negative':
-        out[M < 0] = 1
-        out[M >= 0] = 0
-        
-        # In negative mode we need to add diagonals back
-        out += np.eye(out.shape[0])
+        out[out > 0] = 0
     else:
         raise Exception(f'Invalid mode {mode}')
+    out.setdiag(1)
+    out.eliminate_zeros()
     return out
 
 def binarize_precmats(
@@ -309,5 +317,5 @@ def binarize_precmats(
 ):
     return {
         axis: binarize_matrix(M, eps=eps, mode=mode)
-        for axis, M in dataset.dataset.items()
+        for axis, M in dataset.precision_matrices.items()
     }
