@@ -92,10 +92,10 @@ The final results are stored in `dataset.precision_matrices["cell"]`, `dataset.p
 ## Roadmap
 
 - [x] Add direct support for AnnData objects
-- [ ] Add direct support for MuData objects (so that converson to `Dataset` is not needed)
+- [x] Add direct support for MuData objects (so that converson to `Dataset` is not needed)
 - [ ] Stabilize API
 - [ ] Add comprehensive docs
-- [ ] Have `generate_data` directly generate `Dataset` objects
+- [x] Have `generate_data` directly generate `Dataset` objects
 - [ ] Add conda distribution
 - [x] Add example notebook
 - [ ] Make sure regularizers still work
@@ -103,3 +103,4 @@ The final results are stored in `dataset.precision_matrices["cell"]`, `dataset.p
 - [ ] Make sure covariance thresholding trick still works
 - [ ] Add unit tests
 - [ ] Allow forcing subset of axes to have given precision matrices
+- [ ] Add random generation of count matrix data

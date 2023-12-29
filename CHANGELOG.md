@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.2.2 (IN PROGRESS)
+- IN PROGRESS!
+
+### Documentation
+- Updated checklist on README
+
 ## v0.2.1 (2023/12/29)
 
 ### API Changes
