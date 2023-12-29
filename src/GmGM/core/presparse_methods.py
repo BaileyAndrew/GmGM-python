@@ -11,6 +11,7 @@ preserving sparsity.
 
 from __future__ import annotations
 from typing import Literal, Optional
+from numbers import Real
 import warnings
 
 from ..typing import DataTensor
@@ -179,7 +180,7 @@ def recompose_sparse_precisions(
     Creates a pre-thresholded precision matrix
     """
 
-    if isinstance(to_keep, float) | isinstance(to_keep, int):
+    if isinstance(to_keep, Real):
         to_keep = {
             axis: to_keep
             for axis in X.all_axes

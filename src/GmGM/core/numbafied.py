@@ -11,16 +11,20 @@ parallelism, but Numba makes it quite easy.
 
 import numba as nb
 import numpy as np
-from .typing import Axis, Modality
+from ..typing import Axis, Modality
 
 class _project_inv_kron_sum:
     @staticmethod
-    @nb.jit(nopython=True, fastmath=True, parallel=True, cache=True)
+    @nb.jit(
+        nopython=True,
+        fastmath=True,
+        parallel=False,
+        cache=True
+    )
     def two_axis(
         x: np.ndarray,
         y: np.ndarray
     ) -> tuple[np.ndarray]:
-        
         k_ratio: float = 1./2.
         x_out: np.ndarray = np.zeros(x.shape[0])
         y_out: np.ndarray = np.zeros(y.shape[0])
@@ -42,7 +46,12 @@ class _project_inv_kron_sum:
         return x_out, y_out
 
     @staticmethod
-    @nb.jit(nopython=True, fastmath=True, parallel=True, cache=True)
+    @nb.jit(
+        nopython=True,
+        fastmath=True,
+        parallel=False,
+        cache=True
+    )
     def three_axis(
         x: np.ndarray,
         y: np.ndarray,
@@ -74,7 +83,12 @@ class _project_inv_kron_sum:
 
         return x_out, y_out, z_out
     
-    @nb.jit(nopython=True, fastmath=True, parallel=True, cache=True)
+    @nb.jit(
+        nopython=True,
+        fastmath=True,
+        parallel=False,
+        cache=True
+    )
     def four_axis(
         x: np.ndarray,
         y: np.ndarray,
@@ -114,11 +128,11 @@ class _project_inv_kron_sum:
     
 class _sum_log_sum:
     @staticmethod
-    @nb.jit(nopython=True, fastmath=True, parallel=True, cache=True)
+    @nb.jit(nopython=True, fastmath=True, parallel=False, cache=True)
     def two_axis(
         x: np.ndarray,
         y: np.ndarray,
-        simplify_size: int = 20
+        simplify_size: int = 1
     ) -> float:
         
         sl: float = 0
@@ -138,12 +152,12 @@ class _sum_log_sum:
         return sl
     
     @staticmethod
-    @nb.jit(nopython=True, fastmath=True, parallel=True, cache=True)
+    @nb.jit(nopython=True, fastmath=True, parallel=False, cache=True)
     def three_axis(
         x: np.ndarray,
         y: np.ndarray,
         z: np.ndarray,
-        simplify_size: int = 20
+        simplify_size: int = 1
     ) -> float:
         
         sl: float = 0
@@ -164,13 +178,13 @@ class _sum_log_sum:
         return sl
     
     @staticmethod
-    @nb.jit(nopython=True, fastmath=True, parallel=True, cache=True)
+    @nb.jit(nopython=True, fastmath=True, parallel=False, cache=True)
     def four_axis(
         x: np.ndarray,
         y: np.ndarray,
         z: np.ndarray,
         w: np.ndarray,
-        simplify_size: int = 20
+        simplify_size: int = 1
     ) -> float:
         
         sl: float = 0

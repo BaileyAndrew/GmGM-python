@@ -6,9 +6,8 @@ from scipy.stats import multivariate_normal
 from scipy.linalg import toeplitz
 
 from typing import Optional, Callable, Literal
-from .typing import Modality, Axis
-
-# TODO: Move over to generating Dataset objects
+from ..typing import Modality, Axis
+from ..dataset import Dataset
 
 
 """
@@ -591,12 +590,12 @@ class PrecMatGenerator:
     ):
         """
         There are two components to the generator:
-            1. The core distribution Ψ
+            1. The core distribution Psi
             2. The mask distribution M
 
-        We then return Ψ ∘ M, where ∘ is the Hadamard product.
+        We then return Psi ∘ M, where ∘ is the Hadamard product.
         By the Schur Product Theorem, this is guaranteed to be posdef
-            if Ψ and M are posdef.
+            if Psi and M are posdef.
 
         The core controls the magnitudes of the distribution.
         
@@ -723,7 +722,7 @@ class DatasetGenerator:
         self,
         *,
         structure: dict[Modality, tuple[Axis]],
-        Ψs: Optional[dict[Axis, np.ndarray]] = None,
+        Psis: Optional[dict[Axis, np.ndarray]] = None,
         generator: Optional[dict[Axis, PrecMatGenerator]] = None,
         size: Optional[dict[Axis, int]] = None,
         batch_name: str = "",
@@ -742,41 +741,41 @@ class DatasetGenerator:
             for axes in structure.values()
             for axis in axes
         }
-        self.Ψs = Ψs
+        self.Psis = Psis
         self.generator = generator
         self.size = size
 
-        if self.generator is None and self.Ψs is None:
-            raise ValueError("Must provide either Ψs or generator")
+        if self.generator is None and self.Psis is None:
+            raise ValueError("Must provide either Psis or generator")
         
-        if self.size is None and self.Ψs is None:
-            raise ValueError("Must provide either Ψs or size")
+        if self.size is None and self.Psis is None:
+            raise ValueError("Must provide either Psis or size")
         
         if self.size is None:
             self.size = {
-                axis: Ψ.shape[0]
-                for axis, Ψ in self.Ψs.items()
+                axis: Psi.shape[0]
+                for axis, Psi in self.Psis.items()
             }
 
-        if self.Ψs is None:
-            self.Ψs = {
+        if self.Psis is None:
+            self.Psis = {
                 axis: generator.generate(self.size[axis])
                 for axis, generator in self.generator.items()
             }
         
-    def reroll_Ψs(self):
+    def reroll_Psis(self):
         if self.generator is None:
-            raise ValueError("Cannot reroll Ψs if generator is not provided")
+            raise ValueError("Cannot reroll Psis if generator is not provided")
         
-        self.Ψs = {
+        self.Psis = {
             axis: generator.generate(self.size[axis])
             for axis, generator in self.generator.items()
         }
 
     def generate(
         self,
-        m: dict[str, int]
-    ) -> dict[str, np.ndarray]:
+        m: dict[str, int] | int = 1
+    ) -> Dataset:
         """
         Inputs:
             m: Dict of number of samples for each modality
@@ -834,9 +833,15 @@ class DatasetGenerator:
 
         for name, axes in self.structure.items():
             Ys[name] = fast_kronecker_normal(
-                [self.Ψs[axis] for axis in axes if axis is not self.batch_name],
+                [self.Psis[axis] for axis in axes if axis is not self.batch_name],
                 m[name],
                 method = self.method,
             )
             
-        return Ys
+        return Dataset(
+            dataset=Ys,
+            structure=self.structure,
+            batch_axes={self.batch_name},
+        )
+    
+    # TODO: Add __repr__

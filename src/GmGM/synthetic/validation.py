@@ -1,9 +1,9 @@
 from typing import *
 import numpy as np
 import matplotlib.pyplot as plt
-from .GmGM import *
-from .extras.regularizers import *
-from .typing import *
+from ..GmGM import *
+from ..extras.regularizers import *
+from ..typing import *
 from .generate_data import *
 
 class RunningMeasurer:
@@ -20,6 +20,7 @@ class RunningMeasurer:
     def std(self):
         return np.sqrt(self.var)
     
+# TODO: Move these to .typing
 AlgorithmName: TypeAlias = str
 RegularizationParameter: TypeAlias = float
 PrecisionMatrix: TypeAlias = np.ndarray
@@ -34,9 +35,9 @@ Algorithm: TypeAlias = Callable[
 def measure_prec_recall(
     generator: DatasetGenerator,
     algorithms: dict[AlgorithmName, Algorithm],
-    Λs: dict[Algorithm, list[float]],
+    Lambdas: dict[AlgorithmName, list[float]],
     num_attempts: int,
-    num_samples: int = 100,
+    num_samples: int,
     *,
     verbose: int = 0,
     give_prior: bool = False
@@ -52,19 +53,19 @@ def measure_prec_recall(
 ]:
     """
     Using `generator`, test the performance of `algorithm` on the dataset
-    as the regularization parameter Λ varies
+    as the regularization parameter Lambda varies
 
-    For each Λ, we run `num_attempts` attempts and average the results
+    For each Lambda, we run `num_attempts` attempts and average the results
     """
 
     random_alg = list(algorithms.keys())[0]
-    output = [None] * len(Λs[random_alg])
+    output = [None] * len(Lambdas[random_alg])
 
-    num_λs = len(Λs[random_alg])
+    num_Lambdas = len(Lambdas[random_alg])
 
     # Create measurers
     measurers = []
-    for idx in range(num_λs):
+    for idx in range(num_Lambdas):
         measurers.append({
             algorithm_name: {
                 axis_name: {
@@ -81,16 +82,16 @@ def measure_prec_recall(
             print(f"Attempt {i+1}/{num_attempts}")
 
         # Generate a new ground truth
-        generator.reroll_Ψs()
-        Ψs_true = generator.Ψs
+        generator.reroll_Psis()
+        Psis_true = generator.Psis
 
         # Use this new ground truth to generate
         # an input dataset
         dataset = generator.generate(num_samples)
 
-        for idx in range(num_λs):
+        for idx in range(num_Lambdas):
             if verbose >= 2:
-                print(f"λ #{idx}")
+                print(f"Lambda #{idx}")
 
             # For each algorithm collect metrics for that
             # algorithm on this dataset
@@ -100,16 +101,23 @@ def measure_prec_recall(
 
                 # Run algorithm
                 if not give_prior:
-                    Ψs_pred = algorithm(dataset, generator.structure, Λs[algorithm_name][idx])
+                    Psis_pred = algorithm(
+                        dataset,
+                        Lambdas[algorithm_name][idx],
+                    )
                 else:
-                    Ψs_pred = algorithm(dataset, generator.structure, Λs[algorithm_name][idx], Ψs_true)
+                    Psis_pred = algorithm(
+                        dataset,
+                        Lambdas[algorithm_name][idx],
+                        Psis_true,
+                    )
 
                 # Get metrics
-                Ψs_pred = binarize_matrices(Ψs_pred, eps=1e-3, mode="<Tolerance")
+                Psis_pred = binarize_precmats(Psis_pred, eps=1e-3, mode="<Tolerance")
                 cm = {
-                    axis: generate_confusion_matrices(Ψs_pred[axis], Ψs_true[axis])
+                    axis: generate_confusion_matrices(Psis_pred[axis], Psis_true[axis])
                     for axis in generator.axes
-                    if axis in Ψs_pred
+                    if axis in Psis_pred
                 }
 
                 precisions = {
@@ -130,7 +138,7 @@ def measure_prec_recall(
                     measurers[idx][algorithm_name][axis]["precision"](precisions[axis])
                     measurers[idx][algorithm_name][axis]["recall"](recalls[axis])
 
-    for idx in range(num_λs):
+    for idx in range(num_Lambdas):
         # Get results from the running measurer into a nice dictionary format
         output[idx] = {
             algorithm_name: {
@@ -240,16 +248,9 @@ def generate_confusion_matrices(
     np.fill_diagonal(pred, 1)
     np.fill_diagonal(truth, 1)
     
-    TP: "True positives"
     TP = (pred * truth - In).sum()
-    
-    FP: "False positives"
     FP = (pred * (1 - truth)).sum()
-    
-    TN: "True negatives"
     TN = ((1 - pred) * (1 - truth)).sum()
-    
-    FN: "False negatives"
     FN = ((1 - pred) *  truth).sum()
     
     return np.array([
@@ -301,12 +302,12 @@ def binarize_matrix(
         raise Exception(f'Invalid mode {mode}')
     return out
 
-def binarize_matrices(
-    Ms: dict[Axis],
+def binarize_precmats(
+    dataset: Dataset,
     eps: float = 0,
     mode: Literal["Negative", "<Tolerance"] = '<Tolerance'
 ):
     return {
         axis: binarize_matrix(M, eps=eps, mode=mode)
-        for axis, M in Ms.items()
+        for axis, M in dataset.dataset.items()
     }

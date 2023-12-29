@@ -8,7 +8,7 @@ from typing import Optional
 
 from ..dataset import Dataset
 from ..typing import Axis, Modality
-from ..numbafied import project_inv_kron_sum, sum_log_sum
+from .numbafied import project_inv_kron_sum, sum_log_sum
 import numpy as np
 import dask.array as da
 import scipy.sparse as sparse
@@ -250,10 +250,11 @@ def calculate_eigenvalues(
                 if ell is None:
                     continue
                 # Note to self: often it seems project_inv_kron_sum
-                # can be removed, because it doesn't affect much...
+                # is irrelevant, because it doesn't affect much...
                 # Presumably the log determinant is much smaller in effect
                 # than the trace...
                 # Could be worth investigating how often this is the case
+                # and what this says about multi-axis methods
                 diffs[axis] -= project_inv_kron_sum(
                     X.evals,
                     X.structure,

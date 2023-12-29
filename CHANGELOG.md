@@ -1,9 +1,31 @@
 # Changelog
 
+## v0.2.1 (2023/12/29)
+
+### API Changes
+- Moved `GmGM.generate_data` and `GmGM.validation` into new submodule `GmGM.synthetic`
+- Moved `GmGM.numbafied` into `GmGM.core`
+- Change default `simplify_size` of `numbafied._sum_log_sum` to 1 from 20 as this function has not been a bottleneck in the code for several months now, and higher values could lead to numeric instability (which seems to be the main factor limiting applicability to larger datasets at this point in time...).
+- `GmGM.synthetic.binarize_matrices` removed and replaced with `GmGM.synthetic.binarize_precmats`
+
+### Documentation
+- Created notebook `synthetic_data.ipynb` to show off how to create and work with synthetic data.
+
+### Improvements
+- **`DatasetGenerator` now generates `Dataset` object rather than `dict[Modality, np.ndarray]`.**
+- **`measure_prec_recall` in now works on `Dataset` objects.**
+
+### Fixes
+- Removed some greek letters from code (`Ψ`->`Psi`) in `generate_data.py`.
+- Removed some greek letters from code (`Ψ`->`Psi`, `Λ`->`Lambda`) in `validation.py.`
+- Replaced occurances of `isinstance(___, float) | isinstance(___, int)` with `isinstance(___, numbers.Real)` to handle cases when the pased in value is something like `np.int16`.
+- **Fixed the numba-compiled functions being very slow (slower than the python version!!)**.  This was likely due to a bug in numba; if `parallel=true` then, if `GmGM` was run several times, `project_inv_kron_sum` would get slower and slower...  Very weird!  Fixed by removing parallelism; its not needed, these functions are nowhere near the bottleneck for large datasets.
+
 ## v0.2.0 (2023/12/29)
 
 ### Documentation
-- Added `examples/README.md`, which contains a list of common (omics-motivated) use cases 
+- Added `examples/README.md`, which contains a list of common (omics-motivated) use cases
+- Created notebook `single_cell_multiomics.ipynb` showing off how to use this dataset with a MuData object.
 
 ### Improvements
 - `GmGM` with `clr-prost` will now raise a warning if pre-log-transformed AnnData or Mudata is passed in.
@@ -14,7 +36,6 @@
 - `to/from_AnnData` now limits to highly variable `obs` as well as `var` if `use_highly_variable` is `True`.
 - `to/from_AnnData` now much faster and more memory efficient for large datasets if `use_highly_variable` is `True`.
 - `to/from_AnnData` can optionally not use the absolute value of the graph, with the `use_abs_of_graph` parameter.
-- Created notebook `single_cell_multiomics.ipynb` showing off how to use this dataset with a MuData object.
 - `GmGM` with `verbose=True` now gives more information about the computation path used.
 
 ### Fixes

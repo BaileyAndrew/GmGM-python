@@ -12,7 +12,7 @@ import scipy.sparse as sparse
 
 from .typing import Modality, Axis, DataTensor
 from .extras.prior import Prior
-from .numbafied import extract_d_values
+from .core.numbafied import extract_d_values
 
 # Optional dependencies
 try:
