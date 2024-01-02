@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import *
 import numpy as np
 import matplotlib.pyplot as plt
@@ -41,7 +43,7 @@ def measure_prec_recall(
     *,
     verbose: int = 0,
     give_prior: bool = False
-) -> dict[
+) -> list[dict[
     AlgorithmName,
     dict[
         AxisName,
@@ -50,7 +52,7 @@ def measure_prec_recall(
             list[float]
         ]
     ]
-]:
+]]:
     """
     Using `generator`, test the performance of `algorithm` on the dataset
     as the regularization parameter Lambda varies
@@ -162,8 +164,41 @@ def measure_prec_recall(
 
 def plot_prec_recall(
     results: dict,
+    axes: Optional[list[str] | str] = None,
+    title: Optional[str] = None,
+    figsize: tuple[float, float] = (10, 10),
+) -> Tuple[plt.Figure, plt.Axes]:
+    """
+    Plots results of `measure_prec_recall` for `axes`
+    """
+
+    if axes is None:
+        # Extract axes from results
+        for _ in results[0].values():
+            axes = _.keys()
+            break
+
+    fig, axs = plt.subplots(
+        nrows=len(axes) // 3,
+        ncols=min(len(axes), 3),
+        squeeze=False,
+        figsize=figsize,
+    )
+
+    for idx, axis in enumerate(axes):
+        plot_prec_recall_on_axis(results, axis, fig, axs.flat[idx])
+
+    if title is not None:
+        fig.suptitle(title)
+
+    return fig, axs
+
+
+def plot_prec_recall_on_axis(
+    results: dict,
     axis: str,
-    generator: DatasetGenerator
+    fig: Optional[plt.Figure] = None,
+    ax: Optional[plt.Axes] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots results of `measure_prec_recall` for `axis`
@@ -181,7 +216,8 @@ def plot_prec_recall(
     ]
 
     # Now plot the results
-    fig, ax = plt.subplots()
+    if ax is None:
+        fig, ax = plt.subplots()
 
     for algorithm_name, _ in results[0].items():
         # Plot each algorithms PR curve
@@ -213,9 +249,7 @@ def plot_prec_recall(
     ax.set_xlabel("Recall")
     ax.set_ylabel("Precision")
     ax.legend()
-
-    if generator.name is not None:
-        ax.set_title(f"Precision-Recall for {generator.name} on {axis}")
+    ax.set_title(axis)
 
     return fig, ax
 

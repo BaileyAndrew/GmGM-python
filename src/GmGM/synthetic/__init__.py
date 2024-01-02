@@ -2,6 +2,7 @@ from .generate_data import DatasetGenerator, PrecMatGenerator
 from .generate_data import PrecMatErdosRenyiGilbert, PrecMatAutoregressive
 from .generate_data import PrecMatOnes, PrecMatBlob, PrecMatIndependent
 from .generate_data import GroupedPrecMatGenerator
+from .generate_data import NormalDistribution, LogNormalDistribution, ZiLNDistribution
 from .validation import measure_prec_recall, plot_prec_recall
 
 __all__ = [
@@ -15,4 +16,7 @@ __all__ = [
     "GroupedPrecMatGenerator",
     "measure_prec_recall",
     "plot_prec_recall",
+    "NormalDistribution",
+    "LogNormalDistribution",
+    "ZiLNDistribution"
 ]

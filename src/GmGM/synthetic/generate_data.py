@@ -249,6 +249,9 @@ class PrecMatOnes(PrecMatMask):
     ) -> np.ndarray:
         return np.ones((n, n))
     
+    def __repr__(self) -> str:
+        return "PrecMatOnes()"
+    
 class PrecMatIndependent(PrecMatMask):
     """
     Identity matrix
@@ -262,6 +265,9 @@ class PrecMatIndependent(PrecMatMask):
         n: int
     ) -> np.ndarray:
         return np.eye(n)
+    
+    def __repr__(self) -> str:
+        return "PrecMatIndependent()"
     
 class PrecMatErdosRenyiGilbert(PrecMatMask):
     """
@@ -290,6 +296,9 @@ class PrecMatErdosRenyiGilbert(PrecMatMask):
         np.fill_diagonal(symmetrized, self.diagonal_scale)
 
         return symmetrized
+    
+    def __repr__(self) -> str:
+        return f"PrecMatErdosRenyiGilbert(edge_probability={self.edge_probability})"
     
 class PrecMatAutoregressive(PrecMatMask):
     """
@@ -320,6 +329,9 @@ class PrecMatAutoregressive(PrecMatMask):
         diags = np.zeros(n)
         diags[:self.p+1] = 1
         return toeplitz(diags)
+    
+    def __repr__(self) -> str:
+        return f"PrecMatAutoregressive(p={self.p})"
     
 class PrecMatBlob(PrecMatMask):
     """
@@ -353,6 +365,9 @@ class PrecMatBlob(PrecMatMask):
         np.fill_diagonal(cov_mat, 0)
         cov_mat += np.eye(n) * self.diagonal_scale
         return cov_mat
+    
+    def __repr__(self) -> str:
+        return f"PrecMatBlob(probability={self.edge_probability})"
 
 class PrecMatGenerator:
     """
@@ -454,6 +469,9 @@ class PrecMatGenerator:
         mask = self.mask.generate(n)
 
         return self.scale * core * mask
+    
+    def __repr__(self) -> str:
+        return f"<PrecMatGenerator, core={self.core_type}, mask={self.mask}>"
 
 class GroupedPrecMatGenerator(PrecMatGenerator):
     """
@@ -491,6 +509,102 @@ class GroupedPrecMatGenerator(PrecMatGenerator):
 
         return to_return
     
+    def __repr__(self) -> str:
+        rep_str = "<GroupedPrecMatGenerator, groups=\n"
+        for group in self.groups:
+            rep_str += f"\t{group}\n"
+        return rep_str + ">"
+    
+class BaseDistribution:
+    """
+    Given a precision matrix, what distribution do we want our data to follow?
+    Typically is Normal, but could be others
+    """
+    def __init__(self):
+        pass
+
+    # In Python 3.12, can add @override decorator here
+    def generate(
+        self,
+        Psis: list[np.ndarray],
+        num_samples: int,
+        axis_join: Callable[[list[np.ndarray]], np.ndarray] |
+            Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"],
+    ) -> np.ndarray:
+        raise NotImplementedError
+
+class NormalDistribution(BaseDistribution):
+    """
+    Normal distribution
+    """
+    def __init__(self):
+        super().__init__()
+
+    def generate(
+        self,
+        Psis: list[np.ndarray],
+        num_samples: int,
+        axis_join: Callable[[list[np.ndarray]], np.ndarray] |
+            Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"],
+    ) -> np.ndarray:
+        return fast_kronecker_normal(
+            Psis,
+            num_samples,
+            axis_join=axis_join,
+        )
+    
+    def __repr__(self) -> str:
+        return "<Normal Distribution>"
+
+class LogNormalDistribution(NormalDistribution):
+    """
+    Log normal distribution
+    """
+    def __init__(self):
+        super().__init__()
+
+    def generate(
+        self,
+        Psis: list[np.ndarray],
+        num_samples: int,
+        axis_join: Callable[[list[np.ndarray]], np.ndarray] |
+            Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"],
+    ) -> np.ndarray:
+        return np.exp(super().generate(
+            Psis,
+            num_samples,
+            axis_join=axis_join,
+        ))
+    
+    def __repr__(self) -> str:
+        return "<Log Normal Distribution>"
+
+class ZiLNDistribution(LogNormalDistribution):
+    """
+    Zero-inflated log-normal distribution
+    """
+    def __init__(self, truncation):
+        super().__init__()
+        self.truncation = truncation
+
+    def generate(
+        self,
+        Psis: list[np.ndarray],
+        num_samples: int,
+        axis_join: Callable[[list[np.ndarray]], np.ndarray] |
+            Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"],
+    ) -> np.ndarray:
+        Ys = super().generate(
+            Psis,
+            num_samples,
+            axis_join=axis_join,
+        )
+        Ys[Ys < self.truncation] = 0
+        return Ys
+    
+    def __repr__(self) -> str:
+        return f"<ZiLN Distribution, truncation={self.truncation}>"
+
 class DatasetGenerator:
     """
     Generates potentially multimodal datasets
@@ -504,15 +618,19 @@ class DatasetGenerator:
         generator: Optional[dict[Axis, PrecMatGenerator]] = None,
         size: Optional[dict[Axis, int]] = None,
         batch_name: str = "",
-        name: str = None,
         axis_join: MaybeDict[
             Modality,
             Callable[[list[np.ndarray]], np.ndarray] |
                 Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"]
         ] = "Kronecker Sum",
-        distribution: MaybeDict[Modality, Literal["Normal", "Log Normal"]] = "Normal"
+        distribution: MaybeDict[
+            Modality,
+            Literal["Normal", "Log Normal"]
+                | NormalDistribution
+                | LogNormalDistribution
+                | ZiLNDistribution
+        ] = "Normal"
     ):
-        self.name = name
         self.axis_join = axis_join
         self.distribution = distribution
         self.batch_name = batch_name
@@ -549,11 +667,20 @@ class DatasetGenerator:
             }
 
         # Convert distribution into a dict indexed by modality
-        if isinstance(self.distribution, str):
+        if isinstance(self.distribution, str) | isinstance(self.distribution, BaseDistribution):
             self.distribution = {
                 name: self.distribution
                 for name in self.structure.keys()
             }
+        # Convert string-encoded distributions into the corresponding classes
+        for key, value in self.distribution.items():
+            if isinstance(value, str):
+                if value == "Normal":
+                    self.distribution[key] = NormalDistribution()
+                elif value == "Log Normal":
+                    self.distribution[key] = LogNormalDistribution()
+                else:
+                    raise ValueError(f"Unknown distribution {value}")
         
     def reroll_Psis(self):
         if self.generator is None:
@@ -566,11 +693,11 @@ class DatasetGenerator:
 
     def generate(
         self,
-        m: dict[str, int] | int = 1
+        num_samples: MaybeDict[str, int] = 1
     ) -> Dataset:
         """
         Inputs:
-            m: Dict of number of samples for each modality
+            num_samples: Dict of number of samples for each modality
             structure:
                 Dict of tuples of axis names, keyed by modality
                 --
@@ -620,14 +747,14 @@ class DatasetGenerator:
 
         # If passed integer, make all datasets have the same number of samples,
         # with that integer being the number of samples.
-        if isinstance(m, int):
-            m = {name: m for name in self.structure.keys()}
+        if isinstance(num_samples, int):
+            num_samples = {name: num_samples for name in self.structure.keys()}
 
         for name, axes in self.structure.items():
-            Ys[name] = fast_kronecker_normal(
+            Ys[name] = self.distribution[name].generate(
                 [self.Psis[axis] for axis in axes if axis is not self.batch_name],
-                m[name],
-                axis_join=self.axis_join,
+                num_samples[name],
+                axis_join=self.axis_join
             )
             
         return Dataset(
@@ -636,4 +763,39 @@ class DatasetGenerator:
             batch_axes={self.batch_name},
         )
     
-    # TODO: Add __repr__
+    def __repr__(self) -> str:
+        rep_str = "<DatasetGenerator, structure=\n"
+        for name, axes in self.structure.items():
+            rep_str += f"\t{name}: {axes}\n"
+        rep_str += "size=\n"
+        for name, size in self.size.items():
+            rep_str += f"\t{name}: {size}\n"
+        if self.generator is not None:
+            rep_str += "generator=\n"
+            for name, generator in self.generator.items():
+                rep_str += f"\t{name}: {generator}\n"
+        rep_str += "axis_join=\n"
+        rep_str += f"\t{self.axis_join}\n"
+        rep_str += "distribution=\n"
+        for name, distribution in self.distribution.items():
+            rep_str += f"\t{name}: {distribution}\n"
+        return rep_str + ">"
+
+
+"""
+elif dist == "Log Normal" or isinstance(dist, LogNormalDistribution):
+                Ys[name] = np.exp(fast_kronecker_normal(
+                    [self.Psis[axis] for axis in axes if axis is not self.batch_name],
+                    m[name],
+                    axis_join=self.axis_join,
+                ))
+            elif isinstance(dist, ZiLNDistribution):
+                Ys[name] = np.exp(fast_kronecker_normal(
+                    [self.Psis[axis] for axis in axes if axis is not self.batch_name],
+                    m[name],
+                    axis_join=self.axis_join,
+                ))
+                Ys[name][Ys[name] < dist.truncation] = 0
+            else:
+                raise ValueError(f"Unknown distribution {self.distribution[name]}")
+                """

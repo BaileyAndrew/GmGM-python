@@ -1,18 +1,24 @@
 # Changelog
 
-## v0.2.2 (IN PROGRESS)
-- IN PROGRESS!
+## v0.2.2 (2024/01/02)
 
 ### API Changes
 - Removed outdated functions `generate_synthetic_dataset`, `fast_ks_normal`, `generate_Psi`, `generate_Psis`, `generate_sparse_invwishart_matrix` from `GmGM.synthetic`.
 - Renamed the `method` parameter of `fast_kronecker_normal` and `DatasetGenerator` to `axis_join` and allowed it to take a string as well, instead of only allowing Callables.
 - Removed unused `ell` parameter from `add_like_kron_sum`.
+- Added `distribution` parameter to `DatasetGenerator` to allow user to choose whether they want their data to be normally distributed, log-normally distributed, or zero-inflated long-normally distributed.
+- Changed parameter `m` of `DatasetGenerator.generate` to `num_samples
+- `GmGM.synthetic.plot_prec_recall` now accepts multiple axes
 
 ### Documentation
 - Updated checklist on README
 - Mentioned that native MuData support is available in README
 - Added type `MaybeDict` to `GmGM.typing` that allows objects to be either in a dictionary or a singleton.
 - `GmGM.synthetic`'s functions now all have proper type hints
+
+### Improvements
+- Created classes `NormalDistribution`, `LogNormalDistribution`, `ZiLNDistribution`, allowing more synthetic data options
+- Added `__repr__` to `DatasetGenerator` and all affiliated classes.
 
 ## v0.2.1 (2023/12/29)
 
