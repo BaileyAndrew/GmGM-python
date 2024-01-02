@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from typing import Optional, Literal
 import warnings
+import copy
 import numpy as np
 import dask.array as da
 import scipy.sparse as sparse
@@ -435,6 +436,21 @@ class Dataset:
             for modality, axes in self.structure.items()
             if axis in axes
         ]
+    
+    def __getitem__(self, *modalities: list[Modality]) -> Dataset:
+        """
+        Returns a new dataset with only the given modalities
+        """
+        to_return = self.copy()
+        to_return.dataset = {
+            modality: self.dataset[modality]
+            for modality in modalities
+        }
+        to_return.structure = {
+            modality: self.structure[modality]
+            for modality in modalities
+        }
+        return to_return
     
 def array_bytes(
     arr: np.ndarray | sparse.sparray

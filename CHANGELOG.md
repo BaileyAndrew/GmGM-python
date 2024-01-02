@@ -9,16 +9,23 @@
 - Added `distribution` parameter to `DatasetGenerator` to allow user to choose whether they want their data to be normally distributed, log-normally distributed, or zero-inflated long-normally distributed.
 - Changed parameter `m` of `DatasetGenerator.generate` to `num_samples
 - `GmGM.synthetic.plot_prec_recall` now accepts multiple axes
+- Removed `diagonal_scale` parameter from `GmGM.synthetic` functions; now generates negative laplacians, which are guaranteed to be posdef
 
 ### Documentation
 - Updated checklist on README
 - Mentioned that native MuData support is available in README
 - Added type `MaybeDict` to `GmGM.typing` that allows objects to be either in a dictionary or a singleton.
 - `GmGM.synthetic`'s functions now all have proper type hints
+- Extended and annotated `examples/synthetic_data.ipynb`
 
 ### Improvements
 - Created classes `NormalDistribution`, `LogNormalDistribution`, `ZiLNDistribution`, allowing more synthetic data options
 - Added `__repr__` to `DatasetGenerator` and all affiliated classes.
+- Added `__getitem__` to `Dataset`, which returns a shallow copy containing only the modalities passed into the function
+- Added `n_comps` parameter to `PrecMatGenerator` to allow user to ask generator to prioritize matrixes with only `n_comps` large eigenvalues.
+
+### Fixes
+- If `_estimate_sparse_gram` has `num_to_keep==0`, will no longer crash.
 
 ## v0.2.1 (2023/12/29)
 

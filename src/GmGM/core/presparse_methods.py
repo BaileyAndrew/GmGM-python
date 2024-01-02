@@ -278,6 +278,10 @@ def _estimate_sparse_gram(
         shape=(features, features),
     )
 
+    if num_to_keep == 0:
+        # Nothing to do!
+        return result
+
 
     for i in range(0, features + batch_size, batch_size):
         if i >= features:

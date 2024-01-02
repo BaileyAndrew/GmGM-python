@@ -124,6 +124,32 @@ def add_like_kron_sum(
     )
     toset += to_add
 
+def threshold_matrix(
+    Psi: np.ndarray,
+    sparsity: float,
+) -> np.ndarray:
+    Psabs = np.abs(Psi)
+    diagonal = np.diag(Psi).copy()
+    np.fill_diagonal(Psabs, 0)
+    quant = np.quantile(Psabs, 1-sparsity)
+    Psi[Psabs < quant] = 0
+    np.fill_diagonal(Psi, diagonal)
+    return Psi
+
+def make_sparse_small_spectrum(
+    Psi: np.ndarray,
+    sparsity: float,
+    spectrum_size: int = 20
+) -> np.ndarray:
+    diagonal = np.diag(Psi).copy()
+    U, S, Vh = np.linalg.svd(Psi)
+    U = U[:, :spectrum_size]
+    S = S[:spectrum_size]
+    Vh = Vh[:spectrum_size, :]
+    Psi = U @ np.diag(S) @ Vh
+    np.fill_diagonal(Psi, diagonal)
+    return threshold_matrix(Psi, sparsity)
+
 """
 ============================================================
 ==================== GENERATE DATA =========================
@@ -209,18 +235,8 @@ class PrecMatMask:
     The sparsity pattern for a precision matrix
     """
 
-    def __init__(
-        self,
-        *,
-        diagonal_scale: float = 1.1
-    ):
-        """
-        Inputs:
-            diagonal_scale:
-                Value to scale the diagonal by to guarantee posdefness
-        """
-
-        self.diagonal_scale = diagonal_scale
+    def __init__(self):
+        pass
 
     def generate(
         self,
@@ -233,7 +249,14 @@ class PrecMatMask:
         Outputs:
             (n, n) binary positive definite mask matrix
         """
-        pass
+        raise NotImplementedError
+    
+    def _neg_laplace(self, mat: np.ndarray) -> np.ndarray:
+        """
+        Computes the negative laplacian of a matrix
+        """
+        np.fill_diagonal(mat, 0)
+        return np.diag(mat.sum(axis=1)) - mat
 
 class PrecMatOnes(PrecMatMask):
     """
@@ -293,9 +316,9 @@ class PrecMatErdosRenyiGilbert(PrecMatMask):
         # Symmetrize!
         unsymmetrized[np.tril_indices(n)] = 0
         symmetrized = unsymmetrized + unsymmetrized.T
-        np.fill_diagonal(symmetrized, self.diagonal_scale)
+        symmetrized = symmetrized.astype(float)
 
-        return symmetrized
+        return self._neg_laplace(symmetrized)
     
     def __repr__(self) -> str:
         return f"PrecMatErdosRenyiGilbert(edge_probability={self.edge_probability})"
@@ -328,7 +351,7 @@ class PrecMatAutoregressive(PrecMatMask):
         """
         diags = np.zeros(n)
         diags[:self.p+1] = 1
-        return toeplitz(diags)
+        return self._neg_laplace(toeplitz(diags))
     
     def __repr__(self) -> str:
         return f"PrecMatAutoregressive(p={self.p})"
@@ -363,8 +386,8 @@ class PrecMatBlob(PrecMatMask):
         b: np.ndarray = np.random.rand(n).reshape(n, 1) < np.sqrt(self.edge_probability)
         cov_mat: np.ndarray = (b @ b.T).astype(float)
         np.fill_diagonal(cov_mat, 0)
-        cov_mat += np.eye(n) * self.diagonal_scale
-        return cov_mat
+        cov_mat += np.eye(n)
+        return self._neg_laplace(cov_mat)
     
     def __repr__(self) -> str:
         return f"PrecMatBlob(probability={self.edge_probability})"
@@ -377,8 +400,19 @@ class PrecMatGenerator:
     def __init__(
         self,
         *,
-        core_type: str = "invwishart",
-        mask: PrecMatMask | str = "Erdos-Renyi-Gilbert",
+        core_type: Literal[
+            "invwishart",
+            "wishart",
+            "coreless"
+        ] = "coreless",
+        mask: PrecMatMask | Literal[
+            "Erdos-Renyi-Gilbert",
+            "Autoregressive",
+            "Ones",
+            "IID",
+            "Blob"
+        ] = "Erdos-Renyi-Gilbert",
+        n_comps: Optional[int] = None,
         scale: float = 1
     ):
         """
@@ -424,6 +458,8 @@ class PrecMatGenerator:
                         The mask is the identity matrix, i.e. nothing is connected
                     "Blob":
                         The mask contains a blob of fully connectedness
+            n_comps:
+                If not None, the result will be modified to have all but `n_comps` eigenvalues near zero.
             scale: multiply whole precision matrix by this value
         """
 
@@ -444,6 +480,7 @@ class PrecMatGenerator:
         self.core_type = core_type
         self.mask = mask
         self.scale = scale
+        self.n_comps = n_comps
 
     def generate(
         self,
@@ -468,10 +505,22 @@ class PrecMatGenerator:
 
         mask = self.mask.generate(n)
 
-        return self.scale * core * mask
+        output = core * mask
+
+        if self.n_comps is not None:
+            sparsity = np.count_nonzero(output) / output.size
+            # A bit of a hack, but repeating this process seems to work
+            for i in range(100):
+                output = make_sparse_small_spectrum(output, sparsity, self.n_comps)
+
+        return self.scale * output
     
     def __repr__(self) -> str:
-        return f"<PrecMatGenerator, core={self.core_type}, mask={self.mask}>"
+        output = f"<PrecMatGenerator, core={self.core_type}, mask={self.mask}"
+        if self.n_comps is not None:
+            output += f", n_comps={self.n_comps}"
+        output += ">"
+        return output
 
 class GroupedPrecMatGenerator(PrecMatGenerator):
     """
