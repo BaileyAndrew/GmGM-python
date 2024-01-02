@@ -4,12 +4,15 @@
 - IN PROGRESS!
 
 ### API Changes
-- Removed outdated functions `generate_synthetic_dataset`, `fast_ks_normal`, `generate_Psi`, `generate_Psis`, `generate_sparse_invwishart_matrix`.
-- Allowed the `method` parameter of `fast_kronecker_normal` to take a string as well, instead of only allowing Callables.
+- Removed outdated functions `generate_synthetic_dataset`, `fast_ks_normal`, `generate_Psi`, `generate_Psis`, `generate_sparse_invwishart_matrix` from `GmGM.synthetic`.
+- Renamed the `method` parameter of `fast_kronecker_normal` and `DatasetGenerator` to `axis_join` and allowed it to take a string as well, instead of only allowing Callables.
+- Removed unused `ell` parameter from `add_like_kron_sum`.
 
 ### Documentation
 - Updated checklist on README
 - Mentioned that native MuData support is available in README
+- Added type `MaybeDict` to `GmGM.typing` that allows objects to be either in a dictionary or a singleton.
+- `GmGM.synthetic`'s functions now all have proper type hints
 
 ## v0.2.1 (2023/12/29)
 

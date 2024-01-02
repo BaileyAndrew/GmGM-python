@@ -6,7 +6,7 @@ from scipy.stats import multivariate_normal
 from scipy.linalg import toeplitz
 
 from typing import Optional, Callable, Literal
-from ..typing import Modality, Axis
+from ..typing import Modality, Axis, MaybeDict
 from ..dataset import Dataset
 
 
@@ -69,7 +69,6 @@ def kron_sum_diag_fast(
         add_like_kron_sum(
             out,
             lam,
-            ell,
             ds[ell],
             d_lefts[ell],
             d_rights[ell]
@@ -83,10 +82,11 @@ def kron_sum_squared_diag_fast(
     return kron_sum_diag_fast(*Λs) ** 2
 
 def add_like_kron_sum(
-    cur_kron_sum: "Kronsummed matrix",
-    to_add: "What to add to matrix",
-    ell: "Dimension to add along",
-    d, d_left, d_right
+    cur_kron_sum: np.ndarray,
+    to_add: np.ndarray,
+    d: int,
+    d_left: int,
+    d_right: int
 ) -> None:
     """
     !!!!Modifies cur_kron_sum in place!!!!
@@ -98,6 +98,12 @@ def add_like_kron_sum(
     
     This is a way to update our pre-computed
     X[+]Y to incorporate the additive Z.
+
+    Old typing hint:
+        cur_kron_sum: "Kronsummed matrix",
+        to_add: "What to add to matrix",
+        ell: "Dimension to add along",
+        d, d_left, d_right
     """
     # We're gonna be really naughty here and use stride_tricks
     # This is going to reshape our vector in a way so that the elements
@@ -127,7 +133,7 @@ def add_like_kron_sum(
 def fast_kronecker_normal(
     Psis: list[np.ndarray],
     size: int,
-    method: Callable[[list[np.ndarray]], np.ndarray]
+    axis_join: Callable[[list[np.ndarray]], np.ndarray]
         | Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"],
     fail_if_not_posdef: bool = False,
     mean: np.array = None,
@@ -136,7 +142,7 @@ def fast_kronecker_normal(
     Inputs:
         Psis: List of (d_i, d_i) precision matrices, of length K >= 2
         size: Number of samples
-        method:
+        axis_join:
             method of combining eigenvalues
             can be anything, but here are values for common distributions
             * Kronecker Product Normal Distribution:
@@ -153,20 +159,20 @@ def fast_kronecker_normal(
         Xs: Sample of Kronecker sum structured normal distribution
     """
 
-    if isinstance(method, str):
-        if method == "Kronecker Sum":
-            method = kron_sum_diag_fast
-        elif method == "Kronecker Product":
-            method = kron_prod_diag
-        elif method == "Kronecker Sum Squared":
-            method = kron_sum_squared_diag_fast
+    if isinstance(axis_join, str):
+        if axis_join == "Kronecker Sum":
+            axis_join = kron_sum_diag_fast
+        elif axis_join == "Kronecker Product":
+            axis_join = kron_prod_diag
+        elif axis_join == "Kronecker Sum Squared":
+            axis_join = kron_sum_squared_diag_fast
         else:
-            raise ValueError(f"Unknown method {method}")
+            raise ValueError(f"Unknown method {axis_join}")
 
     K = len(Psis)
     ds = [Psi.shape[0] for Psi in Psis]
     vs, Vs = zip(*[np.linalg.eigh(Psi) for Psi in Psis])
-    diag_precisions = method(*vs)
+    diag_precisions = axis_join(*vs)
     
     # Check if positive definite
     min_diag = diag_precisions.min()
@@ -499,11 +505,16 @@ class DatasetGenerator:
         size: Optional[dict[Axis, int]] = None,
         batch_name: str = "",
         name: str = None,
-        method: Callable[[list[np.ndarray]], np.ndarray] |
-            Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"] = "Kronecker Sum",
+        axis_join: MaybeDict[
+            Modality,
+            Callable[[list[np.ndarray]], np.ndarray] |
+                Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"]
+        ] = "Kronecker Sum",
+        distribution: MaybeDict[Modality, Literal["Normal", "Log Normal"]] = "Normal"
     ):
         self.name = name
-        self.method = method
+        self.axis_join = axis_join
+        self.distribution = distribution
         self.batch_name = batch_name
         self.structure: dict[Modality, tuple[Axis]] = {
             name: (self.batch_name, *axes)
@@ -517,6 +528,7 @@ class DatasetGenerator:
         self.Psis = Psis
         self.generator = generator
         self.size = size
+
 
         if self.generator is None and self.Psis is None:
             raise ValueError("Must provide either Psis or generator")
@@ -534,6 +546,13 @@ class DatasetGenerator:
             self.Psis = {
                 axis: generator.generate(self.size[axis])
                 for axis, generator in self.generator.items()
+            }
+
+        # Convert distribution into a dict indexed by modality
+        if isinstance(self.distribution, str):
+            self.distribution = {
+                name: self.distribution
+                for name in self.structure.keys()
             }
         
     def reroll_Psis(self):
@@ -608,7 +627,7 @@ class DatasetGenerator:
             Ys[name] = fast_kronecker_normal(
                 [self.Psis[axis] for axis in axes if axis is not self.batch_name],
                 m[name],
-                method = self.method,
+                axis_join=self.axis_join,
             )
             
         return Dataset(
