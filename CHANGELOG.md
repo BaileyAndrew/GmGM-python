@@ -3,8 +3,13 @@
 ## v0.2.2 (IN PROGRESS)
 - IN PROGRESS!
 
+### API Changes
+- Removed outdated functions `generate_synthetic_dataset`, `fast_ks_normal`, `generate_Psi`, `generate_Psis`, `generate_sparse_invwishart_matrix`.
+- Allowed the `method` parameter of `fast_kronecker_normal` to take a string as well, instead of only allowing Callables.
+
 ### Documentation
 - Updated checklist on README
+- Mentioned that native MuData support is available in README
 
 ## v0.2.1 (2023/12/29)
 

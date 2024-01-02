@@ -124,62 +124,11 @@ def add_like_kron_sum(
 ============================================================
 """
 
-def fast_ks_normal(
-    Psis: list[np.ndarray],
-    size: int,
-    fail_if_not_posdef: bool = False,
-    mean: np.array = None
-) -> np.ndarray:
-    """
-    Inputs:
-        Psis: List of (d_i, d_i) precision matrices, of length K >= 2
-        size: Number of samples
-        fail_if_not_posdef:
-            If True, raise Exception if any of the Psis is not positive definite
-        mean: Mean of the distribution
-
-    Outputs:
-        Xs: Sample of Kronecker sum structured normal distribution
-
-    SUPERSEDED BY fast_kronecker_normal
-    """
-    K = len(Psis)
-    ds = [Psi.shape[0] for Psi in Psis]
-    vs, Vs = zip(*[np.linalg.eigh(Psi) for Psi in Psis])
-    diag_precisions = kron_sum_diag_fast(*vs)
-    
-    # Check if positive definite
-    min_diag = diag_precisions.min()
-    if min_diag < 0:
-        if fail_if_not_posdef:
-            raise Exception("KS of Psis not Positive Definite")
-        diag_precisions -= (min_diag-1)
-    
-    # Sample from diagonalized, vectorized distribution
-    z = multivariate_normal(cov=1).rvs(
-        size=size*np.prod(ds)
-    ).reshape(size, np.prod(ds)) / np.sqrt(diag_precisions)
-    
-    # Reshape into a tensor
-    Xs: np.ndarray = z.reshape(size, *ds)
-    
-    # Undiagonalize the distribution
-    for k in range(K):
-        Xs = np.moveaxis(
-            np.moveaxis(Xs, k+1, -1) @ Vs[k].T,
-            -1,
-            k+1
-        )
-
-    if mean is not None:
-        Xs += mean.reshape(1, *ds)
-
-    return Xs
-
 def fast_kronecker_normal(
     Psis: list[np.ndarray],
     size: int,
-    method: Callable[[list[np.ndarray]], np.ndarray],
+    method: Callable[[list[np.ndarray]], np.ndarray]
+        | Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"],
     fail_if_not_posdef: bool = False,
     mean: np.array = None,
 ) -> np.ndarray:
@@ -194,7 +143,7 @@ def fast_kronecker_normal(
                 kron_prod_diag
             * Kronecker Sum Normal Distribution:
                 kron_sum_diag_fast
-            * Kronecker Squared Sum Normal Distribution:
+            * Kronecker Sum Squared Normal Distribution:
                 kron_sum_squared_diag_fast
         fail_if_not_posdef:
             If True, raise Exception if any of the Psis is not positive definite
@@ -203,6 +152,17 @@ def fast_kronecker_normal(
     Outputs:
         Xs: Sample of Kronecker sum structured normal distribution
     """
+
+    if isinstance(method, str):
+        if method == "Kronecker Sum":
+            method = kron_sum_diag_fast
+        elif method == "Kronecker Product":
+            method = kron_prod_diag
+        elif method == "Kronecker Sum Squared":
+            method = kron_sum_squared_diag_fast
+        else:
+            raise ValueError(f"Unknown method {method}")
+
     K = len(Psis)
     ds = [Psi.shape[0] for Psi in Psis]
     vs, Vs = zip(*[np.linalg.eigh(Psi) for Psi in Psis])
@@ -236,194 +196,6 @@ def fast_kronecker_normal(
 
     return Xs
 
-def generate_Psis(
-    ds: dict[str, tuple[int]],
-    *,
-    sparsities: dict[str, float],
-    gen_type: Literal["bernoulli", "invwishart"] = "bernoulli"
-) -> dict[str, np.ndarray]:
-    """
-    Inputs:
-        ds: Dictionary of dimensions of each mode
-        sparsities:
-            Dictionary of percent of nonzero edges in ground truth
-            for each mode
-        gen_type:
-            "bernoulli" or "invwishart"
-            --
-            "bernoulli" generates a bernoulli distribution
-            "invwishart" generates a (sparsified) inverse wishart distribution
-            --
-    
-    Outputs:
-        Dictionary of precision matrices
-    """
-    
-    Psis: dict[str, np.ndarray] = {}
-        
-    for axis in ds.keys():
-        Psi = generate_Psi(ds[axis], sparsities[axis], gen_type=gen_type)
-        Psis[axis] = Psi
-        
-    return Psis
-
-def generate_Psi(
-    d: int,
-    s: float,
-    *,
-    gen_type: "bernoulli or invwishart" = "bernoulli"
-) -> np.ndarray:
-    """
-    Inputs:
-        d: Dimension of current mode
-        s: Sparsity of current mode
-        gen_type:
-            "bernoulli" or "invwishart"
-            --
-            "bernoulli" generates a bernoulli distribution
-            "invwishart" generates a (sparsified) inverse wishart distribution
-            --
-
-    Outputs:
-        * Precision matrix for current mode
-    """
-    
-    if gen_type == "bernoulli":
-        Psi: "(d, d)" = np.triu(bernoulli.rvs(p=s, size=(d, d)))
-        Psi = Psi.T + Psi
-        np.fill_diagonal(Psi, 1)
-    elif gen_type == "invwishart":
-        Psi = generate_sparse_invwishart_matrix(
-            d,
-            s*d**2 / 2,
-            off_diagonal_scale=0.9,
-            size=1,
-            df_scale=1
-        ).squeeze()
-    else:
-        raise Exception(f"Invalid input '{gen_type}'!")
-    return Psi
-
-def generate_synthetic_dataset(
-    m: dict[str, int],
-    structure: dict[str, tuple[str]],
-    ds: dict[str, int],
-    *,
-    sparsities: dict[str, float],
-    gen_type: "bernoulli or invwishart" = "bernoulli",
-    mean: Optional[int] = None
-) -> tuple[
-    dict[str, np.ndarray],
-    dict[str, np.ndarray]
-]:
-    """
-    Inputs:
-        m: Dict of number of samples for each modality
-        structure:
-            Dict of tuples of axis names, keyed by modality
-            --
-            Each tuple is a shape of a tensor
-            --
-        ds:
-            Dictionary of axis sizes
-        sparsities:
-            Dictionary of sparsities for each axis
-        gen_type:
-            "bernoulli" or "invwishart"
-            --
-            "bernoulli" generates a bernoulli distribution
-            "invwishart" generates a (sparsified) inverse wishart distribution
-            --
-        mean:
-            Mean of the distribution
-
-    Outputs:
-        Psis:
-            Dictionary of precision matrices
-        Ys:
-            Dictionary of samples of Kronecker sum structured normal distribution
-
-
-    Suppose we have a multiomics dataset of:
-    300 people x 50 gut microbes x 12 timestamps
-    300 people x 200 metabolites
-    
-    Then structure would be:
-    {
-        "microbiome": ("people", "microbes", "time"),
-        "metabolome": ("people", "metabolites")
-    }
-    
-    and ds would be:
-    {
-        "people": 300,
-        "microbes": 50,
-        "time": 12,
-        "metabolites": 200
-    }
-    """
-    
-    Psis: dict[str, np.ndarray] = {}
-    
-    for name in ds.keys():
-        Psis[name] = generate_Psi(
-            ds[name],
-            sparsities[name],
-            gen_type=gen_type
-        )
-        
-    Ys: dict = {name : None for name in structure.keys()}
-    for name, axes in structure.items():
-        Ys[name] = fast_ks_normal(
-            [Psis[axis] for axis in axes],
-            m[name],
-            mean=mean
-        )
-        
-    return Psis, Ys
-
-def generate_sparse_invwishart_matrix(
-    n: int,
-    expected_nonzero: int,
-    *,
-    off_diagonal_scale: float = 0.9,
-    size: int = 1,
-    df_scale: int = 1
-) -> np.ndarray:
-    """
-    Inputs:
-        n: Number of rows/columns of output
-        expected_nonzero: Number of nondiagonal nonzero entries expected
-        off_diagonal_scale: Value strictly between 0 and 1 to guarantee posdefness
-        size: Number of samples to return
-        df_scale: How much to multiply the df parameter of invwishart, must be >= 1
-
-    Outputs:
-        (`size`, n, n) batch of sparse positive definite matrices
-
-    Generates two sparse positive definite matrices.
-    Relies on Schur Product Theorem; we create a positive definite mask matrix and
-    then hadamard it with our precision matrices
-    """
-    
-    Psi: np.ndarray
-    
-    # Probability to achieve desired expected value of psi nonzeros
-    p: float = np.sqrt(expected_nonzero / (n**2 - n))
-    
-    # Generate a batch of bernoulli matrices
-    b = bernoulli(p=p).rvs(size=(size, n, 1)) * np.sqrt(off_diagonal_scale)
-    D = (1-b*b)*np.eye(n)
-    Mask = D + b @ b.transpose([0, 2, 1])
-
-    # Apply the mask to invwishart matrices
-    Psi = invwishart.rvs(df_scale * n, np.eye(n), size=size) / (df_scale * n) * Mask
-    
-    # This just affects how much normalization is needed
-    # TODO: Why is this needed?
-    Psi /= np.trace(Psi, axis1=1, axis2=2).reshape(size, 1, 1) / n
-    
-    return Psi
 
 
 class PrecMatMask:
@@ -727,7 +499,8 @@ class DatasetGenerator:
         size: Optional[dict[Axis, int]] = None,
         batch_name: str = "",
         name: str = None,
-        method: Callable[[list[np.ndarray]], np.ndarray] = kron_sum_diag_fast,
+        method: Callable[[list[np.ndarray]], np.ndarray] |
+            Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"] = "Kronecker Sum",
     ):
         self.name = name
         self.method = method

@@ -51,7 +51,28 @@ This modifies the AnnData object in place, storing the resultant graphs in `scRN
 
 ### With MuData
 
-Native support for MuData is coming soon.
+Mudata support is very similar to AnnData support.  Suppose we had a MuData object `mudata` with scATAC and scRNA data, then:
+
+```python
+GmGM(
+    mudata,
+    to_keep={
+        "obs": 10,
+        "rna-var": 10,
+        "atac-var": 10
+    }
+)
+# Cell graph
+scRNA.obsp["obs_gmgm_connectivities"]
+# Gene graph
+scRNA.varp["rna-var_gmgm_connectivities"]
+# Peak graph
+scRNA.varp["atac-var_gmgm_connectivities"]
+```
+
+In general, accessing features can be done by appending the name of the modality onto `"var"`, i.e. `"metabolomics-var"` if the MuData has a metabolomics modality.
+
+Note that we (**will**, not currently) support MuData with the `axis=1` and `axis=-1` parameters as well.
 
 ### General Usage (i.e. Without AnnData/MuData)
 
