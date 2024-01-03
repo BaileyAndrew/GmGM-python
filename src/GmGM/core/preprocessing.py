@@ -134,19 +134,25 @@ def _grammify_core(
     
     output: np.ndarray
     if batch_size is None:
-        batch_size = matricized.shape[0]
+        batch_size = matricized.shape[1]
 
     if use_nonparanormal_skeptic:
-        for idx in range(0, matricized.shape[0] + batch_size, batch_size):
-            increase = min(batch_size, matricized.shape[0] - idx)
+        # Can skip fancy stuff by just using np.sin(np.pi/6 * np.spearmanr(matricized, axis=0)[0])
+        # However we found that tended to take long on large data.
+        # We have thus unfolded the internals of that function in preparation for future speed improvements
+        # in the future should it become necessary and/or possible.
+        for idx in range(0, matricized.shape[1] + batch_size, batch_size):
+            increase = min(batch_size, matricized.shape[1] - idx)
             if idx <= 0:
                 break
 
-            matricized[idx:idx+increase] = stats.rankdata(matricized[idx:idx+increase], axis=0)
-            matricized[idx:idx+increase] -= matricized[idx:idx+increase].mean(axis=0, keepdims=True)
+            matricized[:, idx:idx+increase] = stats.rankdata(matricized[:, idx:idx+increase], axis=0)
+            matricized[:, idx:idx+increase] -= matricized[:, idx:idx+increase].mean(axis=0, keepdims=True)
 
     output = matricized @ matricized.T
+
     if use_nonparanormal_skeptic:
+        output = np.corrcoef(matricized)
         output = np.sin(np.pi/6 * output)
     
     return output

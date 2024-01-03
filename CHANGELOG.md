@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.2.3 (2024/01/03)
+
+### API Changes
+- `GmGM.synthetic.plot_prec_recall` now accepts `color` and `linestyle` parameters (type `dict[AlgorithmName, str]`)
+
+### Documentation
+- `synthetic_data.ipynb` now has examples with the nonparanormal skeptic
+
+### Fixes
+- Fixed `use_nonparanormal_skeptic=True`; before it would output nonsense!
+
 ## v0.2.2 (2024/01/02)
 
 ### API Changes
@@ -7,7 +18,7 @@
 - Renamed the `method` parameter of `fast_kronecker_normal` and `DatasetGenerator` to `axis_join` and allowed it to take a string as well, instead of only allowing Callables.
 - Removed unused `ell` parameter from `add_like_kron_sum`.
 - Added `distribution` parameter to `DatasetGenerator` to allow user to choose whether they want their data to be normally distributed, log-normally distributed, or zero-inflated long-normally distributed.
-- Changed parameter `m` of `DatasetGenerator.generate` to `num_samples
+- Changed parameter `m` of `DatasetGenerator.generate` to `num_samples`.
 - `GmGM.synthetic.plot_prec_recall` now accepts multiple axes
 - Removed `diagonal_scale` parameter from `GmGM.synthetic` functions; now generates negative laplacians, which are guaranteed to be posdef
 
@@ -22,7 +33,7 @@
 - Created classes `NormalDistribution`, `LogNormalDistribution`, `ZiLNDistribution`, allowing more synthetic data options
 - Added `__repr__` to `DatasetGenerator` and all affiliated classes.
 - Added `__getitem__` to `Dataset`, which returns a shallow copy containing only the modalities passed into the function
-- Added `n_comps` parameter to `PrecMatGenerator` to allow user to ask generator to prioritize matrixes with only `n_comps` large eigenvalues.
+- Added `n_comps` parameter to `PrecMatGenerator` to allow user to ask generator to prioritize matrices with only `n_comps` large eigenvalues.
 
 ### Fixes
 - If `_estimate_sparse_gram` has `num_to_keep==0`, will no longer crash.
@@ -40,7 +51,7 @@
 
 ### Improvements
 - **`DatasetGenerator` now generates `Dataset` object rather than `dict[Modality, np.ndarray]`.**
-- **`measure_prec_recall` in now works on `Dataset` objects.**
+- **`measure_prec_recall` now works on `Dataset` objects.**
 
 ### Fixes
 - Removed some greek letters from code (`Ψ`->`Psi`) in `generate_data.py`.

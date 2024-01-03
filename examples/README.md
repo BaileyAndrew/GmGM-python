@@ -72,4 +72,4 @@ It is not uncommon for a subset of patients to only be in one modality.  In this
 
 ## Synthetic Data
 
-You can also use this package to generate synthetic data.  For an example, see TODO
+You can also use this package to generate synthetic data.  For an example, see `synthetic_data.ipynb`.  TODO: Add DatasetGenerator.

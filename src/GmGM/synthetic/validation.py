@@ -163,10 +163,13 @@ def measure_prec_recall(
     return output
 
 def plot_prec_recall(
-    results: dict,
+    results: dict[AlgorithmName, dict[AxisName, dict[MetricName, list[float]]]],
     axes: Optional[list[str] | str] = None,
     title: Optional[str] = None,
     figsize: tuple[float, float] = (10, 10),
+    *,
+    color: Optional[dict[Algorithm, str]] = None,
+    linestyle: Optional[dict[Algorithm, str]] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots results of `measure_prec_recall` for `axes`
@@ -186,7 +189,14 @@ def plot_prec_recall(
     )
 
     for idx, axis in enumerate(axes):
-        plot_prec_recall_on_axis(results, axis, fig, axs.flat[idx])
+        plot_prec_recall_on_axis(
+            results,
+            axis,
+            fig,
+            axs.flat[idx],
+            color=color,
+            linestyle=linestyle
+        )
 
     if title is not None:
         fig.suptitle(title)
@@ -199,6 +209,8 @@ def plot_prec_recall_on_axis(
     axis: str,
     fig: Optional[plt.Figure] = None,
     ax: Optional[plt.Axes] = None,
+    color: Optional[dict[Algorithm, str]] = None,
+    linestyle: Optional[dict[Algorithm, str]] = None,
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots results of `measure_prec_recall` for `axis`
@@ -224,7 +236,13 @@ def plot_prec_recall_on_axis(
         precisions = [result[algorithm_name]["precision"] for result in results]
         recalls = [result[algorithm_name]["recall"] for result in results]
 
-        ax.plot(recalls, precisions, label=algorithm_name)
+        ax.plot(
+            recalls,
+            precisions,
+            label=algorithm_name,
+            color=color[algorithm_name] if color is not None else None,
+            linestyle=linestyle[algorithm_name] if linestyle is not None else None,
+        )
 
         # Add error bounds
         precisions_std = [result[algorithm_name]["precision_std"] for result in results]
