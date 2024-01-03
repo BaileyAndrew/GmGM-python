@@ -320,20 +320,28 @@ class PrecMatErdosRenyiGilbert(PrecMatMask):
         n_comps: Optional[int] = None
     ) -> np.ndarray:
         
-        _n = n_comps if n_comps is not None else n
-        unsymmetrized = (np.random.rand(_n, _n) < self.edge_probability).astype(int)
+        to_return = 1e-6 * np.eye(n)
+        n_comps = n_comps if n_comps is not None else n
+        unsymmetrized = (np.random.rand(n_comps, n_comps) < self.edge_probability).astype(int)
 
         # Symmetrize!
-        unsymmetrized[np.tril_indices(_n)] = 0
+        unsymmetrized[np.tril_indices(n_comps)] = 0
         symmetrized = unsymmetrized + unsymmetrized.T
         symmetrized = symmetrized.astype(float)
 
-        to_return = self._neg_laplace(symmetrized)
+        #to_return = self._neg_laplace(symmetrized)
 
-        if n_comps is not None:
-            V = ortho_group(n).rvs()[:, :_n]
-            to_return = V @ to_return @ V.T
-            to_return = threshold_matrix(to_return, self.edge_probability)
+        # if n_comps is not None:
+        #     V = ortho_group(n).rvs()[:_n, :]
+        #     to_return = V.T @ to_return @ V
+        #     to_return = threshold_matrix(np.abs(to_return), self.edge_probability)
+
+        # if n_comps is not None:
+        #     to_fill = np.diag(to_return).copy()
+        #     to_fill[:n_comps] = to_fill[:n_comps]**4
+        #     np.fill_diagonal(to_return, to_fill)
+
+        to_return[:n_comps, :n_comps] = self._neg_laplace(symmetrized)
 
         return to_return
     

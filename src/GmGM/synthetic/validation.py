@@ -103,7 +103,7 @@ def measure_prec_recall(
 
                 # Copy dataset so we don't modify it
                 dataset = _dataset.deepcopy()
-                Psis_true = {key: value+0 for key, value in _Psis_true.items()}
+                Psis_true = {key: value.copy() for key, value in _Psis_true.items()}
 
                 # Run algorithm
                 if not give_prior:
