@@ -440,8 +440,9 @@ class Dataset:
     def __getitem__(self, *modalities: list[Modality]) -> Dataset:
         """
         Returns a new dataset with only the given modalities
+        Is a view, not a copy (`copy.copy` preserves the pointers)
         """
-        to_return = self.copy()
+        to_return = copy.copy(self)
         to_return.dataset = {
             modality: self.dataset[modality]
             for modality in modalities
@@ -451,6 +452,12 @@ class Dataset:
             for modality in modalities
         }
         return to_return
+    
+    def deepcopy(self) -> Dataset:
+        """
+        Returns a deep copy of the dataset
+        """
+        return copy.deepcopy(self)
     
 def array_bytes(
     arr: np.ndarray | sparse.sparray

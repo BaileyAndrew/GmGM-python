@@ -129,7 +129,7 @@ def _grammify_core(
     use_nonparanormal_skeptic: bool = False
 ) -> np.ndarray:
     """
-    TODO: Check if this still works
+    Computes gram matrix of matricized data
     """
     
     output: np.ndarray
@@ -152,7 +152,15 @@ def _grammify_core(
     output = matricized @ matricized.T
 
     if use_nonparanormal_skeptic:
-        output = np.corrcoef(matricized)
+        output = np.cov(matricized)
+        diags = np.diag(output).copy()
+
+        # Avoid divide by zero
+        diags[diags == 0] = 1
+
+        output /= diags[:, np.newaxis]
+        output /= diags[np.newaxis, :]
+
         output = np.sin(np.pi/6 * output)
     
     return output

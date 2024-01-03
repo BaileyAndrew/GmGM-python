@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import numpy as np
 from scipy.stats import invwishart, wishart
-from scipy.stats import multivariate_normal
+from scipy.stats import multivariate_normal, ortho_group
 from scipy.linalg import toeplitz
 
 from typing import Optional, Callable, Literal
@@ -268,8 +268,11 @@ class PrecMatOnes(PrecMatMask):
     
     def generate(
         self,
-        n: int
+        n: int,
+        n_comps: Optional[int] = None
     ) -> np.ndarray:
+        if n_comps is not None:
+            raise ValueError("n_comps not supported for PrecMatOnes")
         return np.ones((n, n))
     
     def __repr__(self) -> str:
@@ -285,9 +288,13 @@ class PrecMatIndependent(PrecMatMask):
     
     def generate(
         self,
-        n: int
+        n: int,
+        n_comps: Optional[int] = None
     ) -> np.ndarray:
-        return np.eye(n)
+        _n = n_comps if n_comps is not None else n
+        to_return = np.zeros((n, n))
+        to_return[:_n, :_n] = np.eye(_n)
+        return to_return
     
     def __repr__(self) -> str:
         return "PrecMatIndependent()"
@@ -309,16 +316,26 @@ class PrecMatErdosRenyiGilbert(PrecMatMask):
 
     def generate(
         self,
-        n: int
+        n: int,
+        n_comps: Optional[int] = None
     ) -> np.ndarray:
-        unsymmetrized = (np.random.rand(n, n) < self.edge_probability).astype(int)
+        
+        _n = n_comps if n_comps is not None else n
+        unsymmetrized = (np.random.rand(_n, _n) < self.edge_probability).astype(int)
 
         # Symmetrize!
-        unsymmetrized[np.tril_indices(n)] = 0
+        unsymmetrized[np.tril_indices(_n)] = 0
         symmetrized = unsymmetrized + unsymmetrized.T
         symmetrized = symmetrized.astype(float)
 
-        return self._neg_laplace(symmetrized)
+        to_return = self._neg_laplace(symmetrized)
+
+        if n_comps is not None:
+            V = ortho_group(n).rvs()[:, :_n]
+            to_return = V @ to_return @ V.T
+            to_return = threshold_matrix(to_return, self.edge_probability)
+
+        return to_return
     
     def __repr__(self) -> str:
         return f"PrecMatErdosRenyiGilbert(edge_probability={self.edge_probability})"
@@ -343,12 +360,15 @@ class PrecMatAutoregressive(PrecMatMask):
     
     def generate(
         self,
-        n: int
+        n: int,
+        n_comps: Optional[int] = None
     ) -> np.ndarray:
         """
         Creates a Toeplitz matrix with p+1 nonzero off-diagonals
         (where the +1 is because diagonal should be nonzero)
         """
+        if n_comps is not None:
+            raise ValueError("n_comps not supported for PrecMatAutoregressive")
         diags = np.zeros(n)
         diags[:self.p+1] = 1
         return self._neg_laplace(toeplitz(diags))
@@ -376,13 +396,16 @@ class PrecMatBlob(PrecMatMask):
     
     def generate(
         self,
-        n: int
+        n: int,
+        n_comps: Optional[int] = None
     ) -> np.ndarray:
         """
         Creates a matrix with a cluster such that:
             all vertices in the cluster are connected to each other
             all vertices outside the cluster are connected to nothing
         """
+        if n_comps is not None:
+            raise ValueError("n_comps not supported for PrecMatBlob")
         b: np.ndarray = np.random.rand(n).reshape(n, 1) < np.sqrt(self.edge_probability)
         cov_mat: np.ndarray = (b @ b.T).astype(float)
         np.fill_diagonal(cov_mat, 0)
@@ -503,15 +526,15 @@ class PrecMatGenerator:
         else:
             raise ValueError(f"Unknown core type {self.core_type}")
 
-        mask = self.mask.generate(n)
+        mask = self.mask.generate(n, n_comps=self.n_comps)
 
         output = core * mask
 
-        if self.n_comps is not None:
-            sparsity = np.count_nonzero(output) / output.size
-            # A bit of a hack, but repeating this process seems to work
-            for i in range(100):
-                output = make_sparse_small_spectrum(output, sparsity, self.n_comps)
+        # if self.n_comps is not None:
+        #     sparsity = np.count_nonzero(output) / output.size
+        #     # A bit of a hack, but repeating this process seems to work
+        #     for i in range(100):
+        #         output = make_sparse_small_spectrum(output, sparsity, self.n_comps)
 
         return self.scale * output
     
@@ -653,6 +676,41 @@ class ZiLNDistribution(LogNormalDistribution):
     
     def __repr__(self) -> str:
         return f"<ZiLN Distribution, truncation={self.truncation}>"
+    
+class ZiLNMultinomial(ZiLNDistribution):
+    """
+    As in the paper:
+    A zero inflated log-normal model for inference of sparse microbial association networks
+    by Prost, Gazut, and Bruls
+    """
+
+    def __init__(self, truncation, num_reads):
+        super().__init__(truncation)
+        self.num_reads = num_reads
+
+    def generate(
+        self,
+        Psis: list[np.ndarray],
+        num_samples: int,
+        axis_join: Callable[[list[np.ndarray]], np.ndarray] |
+            Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"],
+    ) -> np.ndarray:
+        Ys = super().generate(
+            Psis,
+            num_samples,
+            axis_join=axis_join,
+        )
+        for i, sample in enumerate(Ys):
+            for j, row in enumerate(sample):
+                # row represents the probability parameter of the multinomial distribution
+                # n represents the total size of the multinomial distribution
+                n = self.num_reads[j]
+                Ys[i, j] = np.random.multinomial(n, row / row.sum())
+
+        return Ys
+    
+    def __repr__(self) -> str:
+        return f"<ZiLN Multinomial, truncation={self.truncation}, num_reads={self.num_reads}>"
 
 class DatasetGenerator:
     """

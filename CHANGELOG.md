@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.2.4 (IN PROGRESS)
+
+### Improvements
+- Added `GmGM.synthetic.ZiLNMultinomial` distribution (a `ZiLNDistribution`'s outputs used as parameters to a multinomial).
+- `Dataset` now has a `deepcopy` method
+
+### Fixes
+- `GmGM.synthetic.measure_prec_recall` no longer modifies generated datasets in-place
+- `GmGM(use_nonparanormal_skeptic=True)` no longer divides by zero when computing correlation matrix
+
 ## v0.2.3 (2024/01/03)
 
 ### API Changes
@@ -9,7 +19,7 @@
 - `synthetic_data.ipynb` now has examples with the nonparanormal skeptic
 
 ### Fixes
-- Fixed `use_nonparanormal_skeptic=True`; before it would output nonsense!
+- **Fixed `use_nonparanormal_skeptic=True`; before it would output nonsense!**
 
 ## v0.2.2 (2024/01/02)
 

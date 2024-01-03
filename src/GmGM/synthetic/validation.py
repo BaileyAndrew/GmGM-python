@@ -85,11 +85,11 @@ def measure_prec_recall(
 
         # Generate a new ground truth
         generator.reroll_Psis()
-        Psis_true = generator.Psis
+        _Psis_true = generator.Psis
 
         # Use this new ground truth to generate
         # an input dataset
-        dataset = generator.generate(num_samples)
+        _dataset = generator.generate(num_samples)
 
         for idx in range(num_Lambdas):
             if verbose >= 2:
@@ -100,6 +100,10 @@ def measure_prec_recall(
             for algorithm_name, algorithm in algorithms.items():
                 if verbose >= 3:
                     print(f"Algorithm: {algorithm_name}")
+
+                # Copy dataset so we don't modify it
+                dataset = _dataset.deepcopy()
+                Psis_true = {key: value+0 for key, value in _Psis_true.items()}
 
                 # Run algorithm
                 if not give_prior:
