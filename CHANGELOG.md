@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.4 (IN PROGRESS)
+## v0.2.4 (2024/01/04)
 
 ### API Changes
 - Added `key_map` parameter to `Dataset.from_AnnData` and `Dataset.from_MuData`, allowing the mapping of default axis names to something more useful.
