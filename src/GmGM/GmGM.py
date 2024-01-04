@@ -37,6 +37,7 @@ def GmGM(
     centering_method: Optional[Literal["avg-overall", "clr-prost"]] = "avg-overall",
     # `create_gram_matrices` parameters
     use_nonparanormal_skeptic: bool = False,
+    nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
     # `calculate_eigenvectors` parameters
     n_comps: Optional[int] = None,
     # `calculate_eigenvalues` parameters
@@ -75,12 +76,15 @@ def GmGM(
     if readonly:
         _dataset.make_readonly()
 
-    if use_nonparanormal_skeptic and n_comps is not None:
-        if use_nonparanormal_skeptic:
-            raise ValueError(
-                "Cannot use `use_nonparanormal_skeptic` with limited principal components"
-                + " at the moment (coming soon...)"
-            )
+    # if use_nonparanormal_skeptic and n_comps is not None:
+    #     if use_nonparanormal_skeptic:
+    #         raise ValueError(
+    #             "Cannot use `use_nonparanormal_skeptic` with limited principal components"
+    #             + " at the moment (coming soon...)"
+    #         )
+        
+    if nonparanormal_evec_backend is not None and not use_nonparanormal_skeptic:
+        warnings.warn("`use_nonparanormal_skeptic` is false, so `nonparanormal_evec_backend` is ignored")
 
     # Save the random state
     _dataset.random_state = random_state
@@ -116,7 +120,7 @@ def GmGM(
     ])
     # If dataset is a single matrix, then we can do SVD on said matrix
     # to get the eigenvectors for both axes at once
-    if unimodal and matrix_variate and n_comps is not None:
+    if unimodal and matrix_variate and n_comps is not None and not use_nonparanormal_skeptic:
         if verbose:
             print("\tby calculating SVD...")
         direct_svd(
@@ -133,6 +137,8 @@ def GmGM(
         direct_left_eigenvectors(
             _dataset,
             n_comps=n_comps,
+            use_nonparanormal_skeptic=use_nonparanormal_skeptic,
+            nonparanormal_evec_backend=nonparanormal_evec_backend,
             random_state=random_state,
         )
     # If dataset is multi-modal or is tensor-variate, we need to calculate the gram matrices

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "GmGM"
-version = "0.2.4"
+version = "0.3.0"
 description = "An implementation of the Gaussian multi-Graphical Model"
 authors = [
     { name = "Bailey Andrew", email = "sceba@leeds.ac.uk" }

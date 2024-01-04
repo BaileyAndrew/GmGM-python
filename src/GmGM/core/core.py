@@ -4,7 +4,7 @@ specifically Theorems 1 and 2 of the ArXiv paperß
 """
 
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, Literal
 
 from ..dataset import Dataset
 from ..typing import Axis, Modality
@@ -12,6 +12,7 @@ from .numbafied import project_inv_kron_sum, sum_log_sum
 import numpy as np
 import dask.array as da
 import scipy.sparse as sparse
+import scipy.stats as stats
 
 import warnings
 
@@ -23,7 +24,9 @@ def direct_left_eigenvectors(
     X: Dataset,
     n_comps: Optional[int] = None,
     n_power_iter: int = 4,
-    n_over_samples: int = 100,
+    n_oversamples: int = 100,
+    use_nonparanormal_skeptic: bool = False,
+    nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
     random_state: Optional[int] = None
 ) -> Dataset:
     """
@@ -51,12 +54,35 @@ def direct_left_eigenvectors(
             ))
             to_concat.append(matricized)
         full_matricized: da.array = da.concatenate(to_concat, axis=1)
+
+        if use_nonparanormal_skeptic:
+            if nonparanormal_evec_backend is None:
+                warnings.warn("`nonparanormal_evec_backend` unspecified, defaulting to `COCA`")
+                nonparanormal_evec_backend = "COCA"
+            if nonparanormal_evec_backend == "COCA":
+                # Convert data to uniform distribution
+                # (Need to add 1 because otherwise 1 would be maximum value and this maps to infinity)
+                full_matricized = da.apply_along_axis(
+                    stats.rankdata,
+                    0,
+                    full_matricized,
+                    shape=(full_matricized.shape[0],)
+                )
+                full_matricized = full_matricized / (full_matricized.shape[0]+1)
+
+                # Convert uniform distribution to normal distribution
+                full_matricized = full_matricized.map_blocks(stats.norm.ppf)
+            elif nonparanormal_evec_backend == "XPCA":
+                raise NotImplementedError("XPCA backend not yet implemented")
+            else:
+                raise ValueError(f"Unknown `nonparanormal_evec_backend`: {nonparanormal_evec_backend}")
+
         V_1, Lambda, _ = da.linalg.svd_compressed(
             full_matricized,
             k=n_comps,
             compute=True,
-            n_power_iter=4,
-            n_oversamples=100,
+            n_power_iter=n_power_iter,
+            n_oversamples=n_oversamples,
             seed=random_state
         )
         Lambda = (Lambda**2).compute()
@@ -73,7 +99,7 @@ def direct_svd(
     X: Dataset,
     n_comps: Optional[int] = None,
     n_power_iter: int = 4,
-    n_over_samples: int = 100,
+    n_oversamples: int = 100,
     random_state: Optional[int] = None
 ) -> Dataset:
     """
@@ -105,8 +131,8 @@ def direct_svd(
                 dataset,
                 k=n_comps,
                 compute=True,
-                n_power_iter=4,
-                n_oversamples=100,
+                n_power_iter=n_power_iter,
+                n_oversamples=n_oversamples,
                 seed=random_state
             )
             Lambda = (Lambda**2).compute()
