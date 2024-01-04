@@ -102,7 +102,7 @@ class Dataset:
             for tensor in self.old_dataset.values():
                 dataset_bytes += array_bytes(tensor)
 
-        # Add all intermediat results
+        # Add all intermediate results
         for gram_matrix in self.gram_matrices.values():
             aux_bytes += array_bytes(gram_matrix)
         for evals in self.evals.values():
@@ -296,17 +296,27 @@ class Dataset:
     def to_AnnData(
         self,
         key_added: str = "gmgm",
-        use_abs_of_graph: bool = True
+        use_abs_of_graph: bool = True,
+        key_map: Optional[dict[Literal["obs", "var"], Axis]] = None,
     ) -> AnnData:
+        """
+        `key_map` is used to map the default axis names (obs, var) to something more useful.
+        """
         if AnnData is None:
             raise ImportError("Please install AnnData to use this method.")
         if self.base is None:
             raise ValueError("This dataset was not created from an AnnData object.")
+        
+        if key_map is None:
+            key_map = {
+                "obs": "obs",
+                "var": "var"
+            }
 
         _add_graph_to_anndata(
             self.base,
             self.base_use_highly_variable,
-            "obs",
+            key_map["obs"],
             self.base.shape[0],
             "obs",
             key_added,
@@ -320,7 +330,7 @@ class Dataset:
         _add_graph_to_anndata(
             self.base,
             self.base_use_highly_variable,
-            "var",
+            key_map["var"],
             self.base.shape[0],
             "var",
             key_added,
@@ -374,20 +384,29 @@ class Dataset:
     def to_MuData(
         self,
         key_added: str = "gmgm",
-        use_abs_of_graph: bool = True
+        use_abs_of_graph: bool = True,
+        key_map: Optional[dict[Axis, Axis]] = None,
     ) -> MuData:
+        """
+        `key_map` is used to map the default axis names (obs, var) to something more useful.
+        """
         if MuData is None:
             raise ImportError("Please install MuData to use this method.")
         if self.base is None:
             raise ValueError("This dataset was not created from a MuData object.")
         
+        if key_map is None:
+            key_map = {}
+        
         # Is MuData concatenating along the features axis?
         if self.base.axis == 0:
+            obs_key = key_map["obs"] if "obs" in key_map else "obs"
+
             # First add the observations axis to the MuData object
             _add_graph_to_anndata(
                 self.base,
                 self.base_use_highly_variable,
-                "obs",
+                obs_key,
                 self.base.shape[0],
                 "obs",
                 key_added,
@@ -401,10 +420,11 @@ class Dataset:
             
             # Then, for each modality, add the features axis to the MuData object
             for modality in self.base.mod:
+                var_key = key_map[f"{modality}-var"] if f"{modality}-var" in key_map else f"{modality}-var"
                 _add_graph_to_anndata(
                     self.base[modality],
                     self.base_use_highly_variable,
-                    f"{modality}-var",
+                    var_key,
                     self.base[modality].shape[1],
                     "var",
                     key_added,
@@ -498,7 +518,7 @@ def _add_graph_to_anndata(
     graph: np.ndarray | sparse.sparray | sparse.spmatrix,
     highly_variable_indices: Optional[np.ndarray] = None,
     use_abs_of_graph: bool = True,
-    random_state: Optional[int] = None
+    random_state: Optional[int] = None,
 ) -> AnnData | MuData:
     
     if use_abs_of_graph:

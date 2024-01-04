@@ -106,17 +106,21 @@ def measure_prec_recall(
                 Psis_true = {key: value.copy() for key, value in _Psis_true.items()}
 
                 # Run algorithm
-                if not give_prior:
-                    Psis_pred = algorithm(
-                        dataset,
-                        Lambdas[algorithm_name][idx],
-                    )
-                else:
-                    Psis_pred = algorithm(
-                        dataset,
-                        Lambdas[algorithm_name][idx],
-                        Psis_true,
-                    )
+                try:
+                    if not give_prior:
+                        Psis_pred = algorithm(
+                            dataset,
+                            Lambdas[algorithm_name][idx],
+                        )
+                    else:
+                        Psis_pred = algorithm(
+                            dataset,
+                            Lambdas[algorithm_name][idx],
+                            Psis_true,
+                        )
+                except Exception as e:
+                    warnings.warn("Algorithm failed to run: " + str(e))
+                    Psis_pred = {axis: np.zeros_like(Psis_true[axis]) for axis in generator.axes}
 
                 # Get metrics
                 Psis_pred = binarize_precmats(Psis_pred, eps=1e-3, mode="<Tolerance")

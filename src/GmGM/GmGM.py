@@ -32,6 +32,7 @@ def GmGM(
     random_state: Optional[int] = None,
     batch_size: Optional[int] = None,
     verbose: bool = False,
+    print_memory_usage: bool = False,
     # `center` parameters
     centering_method: Optional[Literal["avg-overall", "clr-prost"]] = None,
     # `create_gram_matrices` parameters
@@ -55,7 +56,8 @@ def GmGM(
     use_highly_variable: bool = False,
     key_added: str = "gmgm",
     use_abs_of_graph: bool = True,
-):
+    key_map: Optional[dict[Axis, Axis]] = None,
+) -> Dataset | AnnData | MuData:
     """
     Performs GmGM on the given dataset.
     """
@@ -170,15 +172,28 @@ def GmGM(
         batch_size=batch_size
     )
 
+    # Print memory usage (useful if directly used on `AnnData`/`MuData`)
+    if print_memory_usage:
+        print("Memory Usage: ")
+        _dataset.print_memory_usage()
+
     # If was AnnData/MuData, return it
     if AnnData is not None and isinstance(dataset, AnnData):
         if verbose:
             print("Converting back to AnnData...")
-        return _dataset.to_AnnData(key_added=key_added, use_abs_of_graph=use_abs_of_graph)
+        return _dataset.to_AnnData(
+            key_added=key_added,
+            use_abs_of_graph=use_abs_of_graph,
+            key_map=key_map
+        )
     elif MuData is not None and isinstance(dataset, MuData):
         if verbose:
             print("Converting back to MuData...")
-        return _dataset.to_MuData(key_added=key_added, use_abs_of_graph=use_abs_of_graph)
+        return _dataset.to_MuData(
+            key_added=key_added,
+            use_abs_of_graph=use_abs_of_graph,
+            key_map=key_map
+        )
     
     if verbose:
         print("Done!")

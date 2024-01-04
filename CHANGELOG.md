@@ -2,9 +2,18 @@
 
 ## v0.2.4 (IN PROGRESS)
 
+### API Changes
+- Added `key_map` parameter to `Dataset.from_AnnData` and `Dataset.from_MuData`, allowing the mapping of default axis names to something more useful.
+
+### Documentation
+- Updated `example.ipynb` to show current algorithm with working nonparanormal skeptic and no longer manually create `Dataset` object.
+- Improved error messages from code in `GmGM.core.presparse_methods` (no longer `AssertionError` but `ValueError`).
+
 ### Improvements
 - Added `GmGM.synthetic.ZiLNMultinomial` distribution (a `ZiLNDistribution`'s outputs used as parameters to a multinomial).
 - `Dataset` now has a `deepcopy` method
+- Changed the way low-principal component random precision matrices are generated (still not satisfactory...)
+- `GmGM.synthetic.measure_prec_recall` tries to continue chugging along even if an error gets thrown by algorithm
 
 ### Fixes
 - `GmGM.synthetic.measure_prec_recall` no longer modifies generated datasets in-place
