@@ -255,6 +255,7 @@ class PrecMatMask:
         """
         Computes the negative laplacian of a matrix
         """
+        mat = mat.copy()
         np.fill_diagonal(mat, 0)
         return np.diag(mat.sum(axis=1)) - mat
 
@@ -320,7 +321,8 @@ class PrecMatErdosRenyiGilbert(PrecMatMask):
         n_comps: Optional[int] = None
     ) -> np.ndarray:
         
-        to_return = 1e-6 * np.eye(n)
+        #to_return = 1e-6 * np.eye(n)
+        to_return = np.zeros((n, n))
         n_comps = n_comps if n_comps is not None else n
         unsymmetrized = (np.random.rand(n_comps, n_comps) < self.edge_probability).astype(int)
 

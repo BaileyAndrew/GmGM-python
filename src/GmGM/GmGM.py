@@ -75,6 +75,13 @@ def GmGM(
     if readonly:
         _dataset.make_readonly()
 
+    if use_nonparanormal_skeptic and n_comps is not None:
+        if use_nonparanormal_skeptic:
+            raise ValueError(
+                "Cannot use `use_nonparanormal_skeptic` with limited principal components"
+                + " at the moment (coming soon...)"
+            )
+
     # Save the random state
     _dataset.random_state = random_state
 
