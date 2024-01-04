@@ -11,7 +11,7 @@
 - Added new parameter `readonly=False` to `DatasetGenerator` and `PrecMatGenerator`; `GmGM.synthetic.measure_prec_recall` makes use of these parameters when generating data.
 
 ### Documentation
-- Updated `example.ipynb` to show current algorithm with working nonparanormal skeptic and no longer manually create `Dataset` object.
+- Updated `example.ipynb` to show current algorithm with working nonparanormal skeptic and no longer manually create `Dataset` object, and renamed to `single_cell_transcriptomics.ipynb`.
 - Improved error messages from code in `GmGM.core.presparse_methods` (no longer `AssertionError` but `ValueError`).
 
 ### Improvements
@@ -24,6 +24,7 @@
 - `GmGM.synthetic.measure_prec_recall` no longer modifies generated datasets in-place
 - `GmGM(use_nonparanormal_skeptic=True)` no longer divides by zero when computing correlation matrix
 - Prevented accidental overwriting of input matrix
+- Fixed issue with `GmGM` not always properly assigning values to input if input was a `Dataset` object rather than `AnnData`/`MuData.`
 
 ## v0.2.3 (2024/01/03)
 

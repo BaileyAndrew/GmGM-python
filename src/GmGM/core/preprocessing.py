@@ -36,7 +36,7 @@ def center(
             )
             X.dataset[modality] = X.dataset[modality].toarray()
 
-        if X.dataset[modality].flags.writeable:
+        if hasattr(X.dataset[modality], "flags") and X.dataset[modality].flags.writeable:
             X.dataset[modality] -= X.dataset[modality].mean()
         else:
             X.dataset[modality] = X.dataset[modality] - X.dataset[modality].mean()
@@ -60,7 +60,7 @@ def clr_prost(
 
     for modality in X.dataset.keys():
         dataset = X.dataset[modality]
-        if not dataset.flags.writeable:
+        if hasattr(dataset, "flags") and not dataset.flags.writeable:
             dataset = dataset.copy()
         if not sparse.issparse(dataset):
             axes = tuple(range(1, len(dataset.shape)))

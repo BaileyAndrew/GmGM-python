@@ -70,7 +70,7 @@ def GmGM(
     elif is_mudata:
         _dataset = Dataset.from_MuData(dataset, use_highly_variable=use_highly_variable)
     else:
-        _dataset = dataset.copy()
+        _dataset = dataset
 
     if readonly:
         _dataset.make_readonly()

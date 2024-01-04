@@ -159,7 +159,13 @@ class Dataset:
         """
         self.made_readonly: set[Modality] = set({})
         for modality, tensor in self.dataset.items():
-            if tensor.flags.writeable:
+            if not hasattr(tensor, "flags"):
+                warnings.warn(
+                    f"Trying to set {modality}'s tensor of type {type(tensor)} to read-only,"
+                    + " but this dataset has no `flags` attribute.  Making a copy instead."
+                )
+                self.dataset[modality] = tensor.copy()
+            elif tensor.flags.writeable:
                 self.made_readonly.add(modality)
                 tensor.flags.writeable = False
 
@@ -168,6 +174,8 @@ class Dataset:
         Makes the dataset writeable
         """
         for modality, tensor in self.dataset.items():
+            if not hasattr(tensor, "flags"):
+                continue
             if modality in self.made_readonly:
                 tensor.flags.writeable = True
         self.made_readonly = set()
@@ -177,6 +185,8 @@ class Dataset:
         Makes the dataset writeable
         """
         for tensor in self.dataset.values():
+            if not hasattr(tensor, "flags"):
+                continue
             tensor.flags.writeable = True
 
     def _calculate_axes(self) -> None:
@@ -308,7 +318,7 @@ class Dataset:
         if AnnData is None:
             raise ImportError("Please install AnnData to use this method.")
         matrix = data.X
-        if readonly:
+        if hasattr(matrix, "flags") and readonly:
             matrix.flags.writeable = False
         if use_highly_variable and 'highly_variable' in data.var.keys():
             matrix = matrix[:, data.var.highly_variable]
@@ -393,7 +403,7 @@ class Dataset:
                 matrix = data[modality].X
                 if use_highly_variable and 'highly_variable' in data[modality].var.keys():
                     matrix = data[modality][:, data[modality].var.highly_variable].X
-                if readonly:
+                if hasattr(matrix, "flags") and readonly:
                     matrix.flags.writeable = False
                 matrices[modality] = matrix
 
