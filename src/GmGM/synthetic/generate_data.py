@@ -646,8 +646,13 @@ class LogNormalDistribution(NormalDistribution):
     """
     Log normal distribution
     """
-    def __init__(self):
+    def __init__(self, cutoff: Optional[float] = 100):
+        """
+        `cutoff` is the value at which we truncate the original normal distribution
+        to prevent overflow errors
+        """
         super().__init__()
+        self.cutoff = cutoff
 
     def generate(
         self,
@@ -656,11 +661,13 @@ class LogNormalDistribution(NormalDistribution):
         axis_join: Callable[[list[np.ndarray]], np.ndarray] |
             Literal["Kronecker Sum", "Kronecker Product", "Kronecker Sum Squared"],
     ) -> np.ndarray:
-        return np.exp(super().generate(
+        to_return = super().generate(
             Psis,
             num_samples,
             axis_join=axis_join,
-        ))
+        )
+        to_return[to_return > self.cutoff] = self.cutoff
+        return np.exp(to_return)
     
     def __repr__(self) -> str:
         return "<Log Normal Distribution>"

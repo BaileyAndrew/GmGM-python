@@ -158,7 +158,6 @@ def _grammify_core(
     output = matricized @ matricized.T
 
     if use_nonparanormal_skeptic:
-        output = np.cov(matricized)
         diags = np.diag(output).copy()
 
         # Avoid divide by zero

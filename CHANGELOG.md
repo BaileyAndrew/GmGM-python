@@ -5,7 +5,7 @@
 IN PROGRESS
 
 ### Improvements
-- **`GmGM(use_nonparanormal_skeptic=True, n_comps!=None)` will now work, allowing linear memory use in the nonparanormal case**.  This is based on the COCA algorithm ("High Dimensional Semiparametric Scale-Invariant Principal Component Analysis" by Han and Liu), inspired by implementation given by authors of "XPCA: Extending PCA for a Combination of Discrete and Continuous Variables" (Anderson-Bergman, Kolda, Kincher-Winoto).  XPCA is a further interesting technique to investigate, and its focus on the semi-continuous case is quite promising, but has not been included at this time.
+- **`GmGM(use_nonparanormal_skeptic=True, n_comps!=None)` will now work, allowing linear memory use in the nonparanormal case**.  This is based on the COCA algorithm ("High Dimensional Semiparametric Scale-Invariant Principal Component Analysis" by Han and Liu), inspired by implementation given by authors of "XPCA: Extending PCA for a Combination of Discrete and Continuous Variables" (Anderson-Bergman, Kolda, Kincher-Winoto).  XPCA is a further interesting technique to investigate, and its focus on the semi-continuous case is quite promising in light of zero-inflation, but has not been included at this time.
 
 ### Fixes
 - Parameters `n_power_iter`, `n_oversamples` now do as they are supposed to in `direct_svd` and `direct_left_eigenvectors`.

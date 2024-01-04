@@ -72,6 +72,7 @@ def direct_left_eigenvectors(
 
                 # Convert uniform distribution to normal distribution
                 full_matricized = full_matricized.map_blocks(stats.norm.ppf)
+
             elif nonparanormal_evec_backend == "XPCA":
                 raise NotImplementedError("XPCA backend not yet implemented")
             else:

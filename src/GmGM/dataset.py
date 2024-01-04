@@ -31,7 +31,7 @@ class Dataset:
         *,
         dataset: dict[Modality, DataTensor],
         structure: dict[Modality, tuple[Axis]],
-        batch_axes: Optional[set[Axis]] = None
+        batch_axes: Optional[set[Axis]] = None,
     ):
         # Type declarations of attributes
         self.dataset: dict[Modality, DataTensor]
