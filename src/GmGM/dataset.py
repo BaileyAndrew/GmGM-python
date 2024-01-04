@@ -83,6 +83,9 @@ class Dataset:
         # Initialize variable that stores random state
         self.random_state: Optional[int] = None
 
+        # Used to store tensors that have been made read-only
+        self.made_readonly: set[Modality] = {}
+
     def memory_usage(self) -> tuple[int, int, int]:
         """
         Returns the memory usage of the dataset
@@ -149,6 +152,32 @@ class Dataset:
         self._calculate_presences()
         self._calculate_dimensions()
         self._calculate_axis_sizes()
+
+    def make_readonly(self) -> None:
+        """
+        Makes the dataset read-only
+        """
+        self.made_readonly: set[Modality] = set({})
+        for modality, tensor in self.dataset.items():
+            if tensor.flags.writeable:
+                self.made_readonly.add(modality)
+                tensor.flags.writeable = False
+
+    def unmake_readonly(self) -> None:
+        """
+        Makes the dataset writeable
+        """
+        for modality, tensor in self.dataset.items():
+            if modality in self.made_readonly:
+                tensor.flags.writeable = True
+        self.made_readonly = set()
+
+    def make_writeable(self) -> None:
+        """
+        Makes the dataset writeable
+        """
+        for tensor in self.dataset.values():
+            tensor.flags.writeable = True
 
     def _calculate_axes(self) -> None:
         """
@@ -273,17 +302,20 @@ class Dataset:
     def from_AnnData(
         cls,
         data: AnnData,
-        use_highly_variable: bool = True
+        use_highly_variable: bool = True,
+        readonly: bool = True
     ) -> Dataset:
         if AnnData is None:
             raise ImportError("Please install AnnData to use this method.")
         matrix = data.X
+        if readonly:
+            matrix.flags.writeable = False
         if use_highly_variable and 'highly_variable' in data.var.keys():
-            matrix = data[:, data.var.highly_variable].X
+            matrix = matrix[:, data.var.highly_variable]
 
         dataset = Dataset(
             dataset={
-                "AnnData" : matrix#da.from_array(matrix)
+                "AnnData" : matrix
             },
             structure={
                 "AnnData": ("obs", "var")
@@ -348,7 +380,8 @@ class Dataset:
     def from_MuData(
         cls,
         data: MuData,
-        use_highly_variable: bool = True
+        use_highly_variable: bool = True,
+        readonly: bool = True
     ) -> Dataset:
         if MuData is None:
             raise ImportError("Please install MuData to use this method.")
@@ -360,6 +393,8 @@ class Dataset:
                 matrix = data[modality].X
                 if use_highly_variable and 'highly_variable' in data[modality].var.keys():
                     matrix = data[modality][:, data[modality].var.highly_variable].X
+                if readonly:
+                    matrix.flags.writeable = False
                 matrices[modality] = matrix
 
             dataset = Dataset(
@@ -472,6 +507,12 @@ class Dataset:
             for modality in modalities
         }
         return to_return
+    
+    def copy(self) -> Dataset:
+        """
+        Returns a (shallow) copy of the dataset
+        """
+        return copy.copy(self)
     
     def deepcopy(self) -> Dataset:
         """

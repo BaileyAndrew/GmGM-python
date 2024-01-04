@@ -84,12 +84,12 @@ def measure_prec_recall(
             print(f"Attempt {i+1}/{num_attempts}")
 
         # Generate a new ground truth
-        generator.reroll_Psis()
+        generator.reroll_Psis(readonly=True)
         _Psis_true = generator.Psis
 
         # Use this new ground truth to generate
         # an input dataset
-        _dataset = generator.generate(num_samples)
+        _dataset = generator.generate(num_samples, readonly=True)
 
         for idx in range(num_Lambdas):
             if verbose >= 2:
@@ -103,7 +103,10 @@ def measure_prec_recall(
 
                 # Copy dataset so we don't modify it
                 dataset = _dataset.deepcopy()
-                Psis_true = {key: value.copy() for key, value in _Psis_true.items()}
+                Psis_true = {}
+                for key, Psi in _Psis_true.items():
+                    Psis_true[key] = Psi.copy()
+                    Psis_true[key].flags.writeable = True
 
                 # Run algorithm
                 try:
@@ -121,6 +124,9 @@ def measure_prec_recall(
                 except Exception as e:
                     warnings.warn("Algorithm failed to run: " + str(e))
                     Psis_pred = {axis: np.zeros_like(Psis_true[axis]) for axis in generator.axes}
+                else:
+                    # No exception
+                    Psis_pred = {axis: Psis_pred.precision_matrices[axis].copy() for axis in generator.axes}
 
                 # Get metrics
                 Psis_pred = binarize_precmats(Psis_pred, eps=1e-3, mode="<Tolerance")
@@ -371,11 +377,11 @@ def binarize_matrix(
     return out
 
 def binarize_precmats(
-    dataset: Dataset,
+    precmats: dict[Axis, np.ndarray],
     eps: float = 0,
     mode: Literal["Negative", "<Tolerance"] = '<Tolerance'
 ):
     return {
         axis: binarize_matrix(M, eps=eps, mode=mode)
-        for axis, M in dataset.precision_matrices.items()
+        for axis, M in precmats.items()
     }

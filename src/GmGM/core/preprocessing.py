@@ -35,7 +35,11 @@ def center(
                 + "  Converting to dense array..."
             )
             X.dataset[modality] = X.dataset[modality].toarray()
-        X.dataset[modality] -= X.dataset[modality].mean()
+
+        if X.dataset[modality].flags.writeable:
+            X.dataset[modality] -= X.dataset[modality].mean()
+        else:
+            X.dataset[modality] = X.dataset[modality] - X.dataset[modality].mean()
 
     return X
 
@@ -56,6 +60,8 @@ def clr_prost(
 
     for modality in X.dataset.keys():
         dataset = X.dataset[modality]
+        if not dataset.flags.writeable:
+            dataset = dataset.copy()
         if not sparse.issparse(dataset):
             axes = tuple(range(1, len(dataset.shape)))
             dataset[dataset != 0] = np.log(dataset[dataset != 0])

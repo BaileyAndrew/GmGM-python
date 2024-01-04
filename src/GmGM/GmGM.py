@@ -34,7 +34,7 @@ def GmGM(
     verbose: bool = False,
     print_memory_usage: bool = False,
     # `center` parameters
-    centering_method: Optional[Literal["avg-overall", "clr-prost"]] = None,
+    centering_method: Optional[Literal["avg-overall", "clr-prost"]] = "avg-overall",
     # `create_gram_matrices` parameters
     use_nonparanormal_skeptic: bool = False,
     # `calculate_eigenvectors` parameters
@@ -57,6 +57,7 @@ def GmGM(
     key_added: str = "gmgm",
     use_abs_of_graph: bool = True,
     key_map: Optional[dict[Axis, Axis]] = None,
+    readonly: bool = True
 ) -> Dataset | AnnData | MuData:
     """
     Performs GmGM on the given dataset.
@@ -69,7 +70,10 @@ def GmGM(
     elif is_mudata:
         _dataset = Dataset.from_MuData(dataset, use_highly_variable=use_highly_variable)
     else:
-        _dataset = dataset
+        _dataset = dataset.copy()
+
+    if readonly:
+        _dataset.make_readonly()
 
     # Save the random state
     _dataset.random_state = random_state
@@ -197,6 +201,9 @@ def GmGM(
     
     if verbose:
         print("Done!")
+
+    if readonly:
+        _dataset.unmake_readonly()
     
     # Otherwise, return a Dataset object
     return _dataset

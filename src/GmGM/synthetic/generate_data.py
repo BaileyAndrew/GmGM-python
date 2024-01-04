@@ -516,6 +516,7 @@ class PrecMatGenerator:
     def generate(
         self,
         n: int,
+        readonly: bool = False
     ) -> np.ndarray:
         """
         Inputs:
@@ -536,7 +537,7 @@ class PrecMatGenerator:
 
         mask = self.mask.generate(n, n_comps=self.n_comps)
 
-        output = core * mask
+        output = self.scale * core * mask
 
         # if self.n_comps is not None:
         #     sparsity = np.count_nonzero(output) / output.size
@@ -544,7 +545,10 @@ class PrecMatGenerator:
         #     for i in range(100):
         #         output = make_sparse_small_spectrum(output, sparsity, self.n_comps)
 
-        return self.scale * output
+        if readonly:
+            output.flags.writeable = False
+
+        return output
     
     def __repr__(self) -> str:
         output = f"<PrecMatGenerator, core={self.core_type}, mask={self.mask}"
@@ -797,18 +801,19 @@ class DatasetGenerator:
                 else:
                     raise ValueError(f"Unknown distribution {value}")
         
-    def reroll_Psis(self):
+    def reroll_Psis(self, readonly: bool = False):
         if self.generator is None:
             raise ValueError("Cannot reroll Psis if generator is not provided")
         
         self.Psis = {
-            axis: generator.generate(self.size[axis])
+            axis: generator.generate(self.size[axis], readonly=readonly)
             for axis, generator in self.generator.items()
         }
 
     def generate(
         self,
-        num_samples: MaybeDict[str, int] = 1
+        num_samples: MaybeDict[str, int] = 1,
+        readonly: bool = False
     ) -> Dataset:
         """
         Inputs:
@@ -871,6 +876,8 @@ class DatasetGenerator:
                 num_samples[name],
                 axis_join=self.axis_join
             )
+            if readonly:
+                Ys[name].flags.writeable = False
             
         return Dataset(
             dataset=Ys,

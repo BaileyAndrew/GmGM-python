@@ -4,6 +4,11 @@
 
 ### API Changes
 - Added `key_map` parameter to `Dataset.from_AnnData` and `Dataset.from_MuData`, allowing the mapping of default axis names to something more useful.
+- Added `readonly` parameter to `GmGM` to ensure the input matrix doesn't get written to.
+- Changed default of `GmGM(centering_method=None)` to `GmGM(centering_method='avg_overall')`.
+- Added new parameter `GmGM(readonly=True)` that prevents overwriting the input matrices.
+- Removed `Dataset.__getitem__`
+- Added new parameter `readonly=False` to `DatasetGenerator` and `PrecMatGenerator`; `GmGM.synthetic.measure_prec_recall` makes use of these parameters when generating data.
 
 ### Documentation
 - Updated `example.ipynb` to show current algorithm with working nonparanormal skeptic and no longer manually create `Dataset` object.
@@ -18,6 +23,7 @@
 ### Fixes
 - `GmGM.synthetic.measure_prec_recall` no longer modifies generated datasets in-place
 - `GmGM(use_nonparanormal_skeptic=True)` no longer divides by zero when computing correlation matrix
+- Prevented accidental overwriting of input matrix
 
 ## v0.2.3 (2024/01/03)
 
