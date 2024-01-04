@@ -1,8 +1,6 @@
 # Changelog
 
-## v0.3.0 (IN PROGRESS)
-
-IN PROGRESS
+## v0.3.0 (2024/01/04)
 
 ### Improvements
 - **`GmGM(use_nonparanormal_skeptic=True, n_comps!=None)` will now work, allowing linear memory use in the nonparanormal case**.  This is based on the COCA algorithm ("High Dimensional Semiparametric Scale-Invariant Principal Component Analysis" by Han and Liu), inspired by implementation given by authors of "XPCA: Extending PCA for a Combination of Discrete and Continuous Variables" (Anderson-Bergman, Kolda, Kincher-Winoto).  XPCA is a further interesting technique to investigate, and its focus on the semi-continuous case is quite promising in light of zero-inflation, but has not been included at this time.
