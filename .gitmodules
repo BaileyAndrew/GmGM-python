@@ -1,0 +1,6 @@
+[submodule "examples/other_algs/teralasso"]
+	path = examples/other_algs/teralasso
+	url = https://github.com/kgreenewald/teralasso
+[submodule "examples/other_algs/eiglasso"]
+	path = examples/other_algs/eiglasso
+	url = https://github.com/SeyoungKimLab/EiGLasso
