@@ -346,7 +346,7 @@ class Dataset:
         """
         if AnnData is None:
             raise ImportError("Please install AnnData to use this method.")
-        if self.base is None:
+        if not isinstance(self.base, AnnData):
             raise ValueError("This dataset was not created from an AnnData object.")
         
         if key_map is None:
@@ -419,7 +419,25 @@ class Dataset:
             return dataset
         # Is MuData concatenating along the samples axis?
         elif data.axis == 1:
-            raise NotImplementedError("Concatenating along the samples axis is not yet supported.")
+            matrices: dict[Modality, np.ndarray] = {}
+            for modality in data.mod:
+                matrix = data[modality].X
+                if use_highly_variable and 'highly_variable' in data[modality].var.keys():
+                    matrix = data[modality][:, data[modality].var.highly_variable].X
+                if hasattr(matrix, "flags") and readonly:
+                    matrix.flags.writeable = False
+                matrices[modality] = matrix
+
+            dataset = Dataset(
+                dataset=matrices,
+                structure={
+                    modality: (f"{modality}-obs", "var")
+                    for modality in data.mod
+                }
+            )
+            dataset.base = data
+            dataset.base_use_highly_variable = use_highly_variable
+            return dataset
         # Is MuData concatenating along both axes?
         elif data.axis == -1:
             raise NotImplementedError("Concatenating along both axes is not yet supported.")
@@ -437,7 +455,7 @@ class Dataset:
         """
         if MuData is None:
             raise ImportError("Please install MuData to use this method.")
-        if self.base is None:
+        if not isinstance(self.base, MuData):
             raise ValueError("This dataset was not created from a MuData object.")
         
         if key_map is None:
@@ -482,7 +500,41 @@ class Dataset:
                 )
         # Is MuData concatenating along the samples axis?
         elif self.base.axis == 1:
-            raise NotImplementedError("Concatenating along the samples axis is not yet supported.")
+            var_key = key_map["var"] if "var" in key_map else "var"
+
+            # First add the observations axis to the MuData object
+            _add_graph_to_anndata(
+                self.base,
+                self.base_use_highly_variable,
+                var_key,
+                self.base.shape[0],
+                "var",
+                key_added,
+                self.precision_matrices["var"],
+                self.base.var.highly_variable \
+                    if "highly_variable" in self.base.var \
+                    else None,
+                use_abs_of_graph,
+                self.random_state
+            )
+            
+            # Then, for each modality, add the features axis to the MuData object
+            for modality in self.base.mod:
+                obs_key = key_map[f"{modality}-obs"] if f"{modality}-obs" in key_map else f"{modality}-obs"
+                _add_graph_to_anndata(
+                    self.base[modality],
+                    self.base_use_highly_variable,
+                    obs_key,
+                    self.base[modality].shape[1],
+                    "obs",
+                    key_added,
+                    self.precision_matrices[f"{modality}-obs"],
+                    self.base[modality].obs.highly_variable \
+                        if "highly_variable" in self.base[modality].obs \
+                        else None,
+                    use_abs_of_graph,
+                    self.random_state
+                )
         # Is MuData concatenating along both axes?
         elif self.base.axis == -1:
             raise NotImplementedError("Concatenating along both axes is not yet supported.")

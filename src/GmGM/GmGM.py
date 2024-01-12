@@ -11,7 +11,7 @@ from .core.presparse_methods import recompose_sparse_precisions
 
 # Used for typing
 from typing import Optional, Literal
-from .typing import Axis
+from .typing import Axis, MaybeDict
 from .dataset import Dataset
 from .extras.regularizers import Regularizer
 try:
@@ -28,7 +28,7 @@ import warnings
 
 def GmGM(
     dataset: Dataset | AnnData,
-    to_keep: float | int | dict[Axis, float | int],
+    to_keep: MaybeDict[Axis, float | int],
     random_state: Optional[int] = None,
     batch_size: Optional[int] = None,
     verbose: bool = False,
@@ -75,19 +75,25 @@ def GmGM(
 
     if readonly:
         _dataset.make_readonly()
-
-    # if use_nonparanormal_skeptic and n_comps is not None:
-    #     if use_nonparanormal_skeptic:
-    #         raise ValueError(
-    #             "Cannot use `use_nonparanormal_skeptic` with limited principal components"
-    #             + " at the moment (coming soon...)"
-    #         )
         
     if nonparanormal_evec_backend is not None and not use_nonparanormal_skeptic:
         warnings.warn("`use_nonparanormal_skeptic` is false, so `nonparanormal_evec_backend` is ignored")
 
     # Save the random state
     _dataset.random_state = random_state
+
+    # Expand `to_keep` if necessary
+    # First expand if it's a single value
+    if isinstance(to_keep, (int, float)):
+        to_keep = {axis: to_keep for axis in _dataset.all_axes}
+
+    # Second expand to also contain keys of `key_map`
+    if key_map is not None:
+        for key, value in key_map.items():
+            if value in to_keep:
+                to_keep[key] = to_keep[value]
+            else:
+                warnings.warn(f"Key `{key}` in `key_map` not found in `to_keep`")
 
     # Center dataset
     if verbose:
@@ -109,6 +115,7 @@ def GmGM(
     # Calculate eigenvectors
     if verbose:
         print("Calculating eigenvectors...")
+
     # We can skip the gram matrix calculation by doing SVD directly
     # Bringing memory usage down from O(n^2) to O(n) if `n_comps`` is O(1)
     # In my experience it slows you down if we want all eigenvectors, so
@@ -118,6 +125,7 @@ def GmGM(
         _dataset.dataset[key].ndim == 2
         for key in _dataset.dataset.keys()
     ])
+
     # If dataset is a single matrix, then we can do SVD on said matrix
     # to get the eigenvectors for both axes at once
     if unimodal and matrix_variate and n_comps is not None and not use_nonparanormal_skeptic:

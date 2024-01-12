@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.3.1 (IN PROGRESS)
+
+### Documentation
+- Updated `examples/danio_rerio.ipynb` to showcase using `GmGM` with `MuData(axis=1)`.
+
+### Improvements
+
+- Now accepts `MuData` with `axis=1`.
+- If `GmGM(key_map != None)`, then `GmGM(to_keep)` can be specified using keys from both the internal representation (`obs`, `{modality}-obs`, `var`, or `{modality}-var`) and from `key_map`.
+
 ## v0.3.0 (2024/01/04)
 
 ### Improvements
