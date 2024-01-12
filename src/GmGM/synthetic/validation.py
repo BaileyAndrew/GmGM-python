@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import traceback
 from typing import *
 import numpy as np
 import matplotlib.pyplot as plt
@@ -42,7 +43,8 @@ def measure_prec_recall(
     num_samples: int,
     *,
     verbose: int = 0,
-    give_prior: bool = False
+    give_prior: bool = False,
+    fail_gracefully: bool = True,
 ) -> list[dict[
     AlgorithmName,
     dict[
@@ -122,11 +124,13 @@ def measure_prec_recall(
                             Psis_true,
                         )
                 except Exception as e:
+                    if not fail_gracefully:
+                        raise e
                     warnings.warn("Algorithm failed to run: " + str(e))
-                    Psis_pred = {axis: np.zeros_like(Psis_true[axis]) for axis in generator.axes}
+                    Psis_pred = {axis: np.zeros_like(Psis_true[axis]) for axis in dataset.all_axes}
                 else:
                     # No exception
-                    Psis_pred = {axis: Psis_pred.precision_matrices[axis].copy() for axis in generator.axes}
+                    Psis_pred = {axis: Psi.copy() for axis, Psi in Psis_pred.precision_matrices.items()}
 
                 # Get metrics
                 Psis_pred = binarize_precmats(Psis_pred, eps=1e-3, mode="<Tolerance")
@@ -195,9 +199,11 @@ def plot_prec_recall(
             axes = _.keys()
             break
 
+    nrows = max(len(axes) // 3, 1)
+    ncols = min(len(axes), 3)
     fig, axs = plt.subplots(
-        nrows=len(axes) // 3,
-        ncols=min(len(axes), 3),
+        nrows=nrows,
+        ncols=ncols,
         squeeze=False,
         figsize=figsize,
     )
@@ -225,6 +231,7 @@ def plot_prec_recall_on_axis(
     ax: Optional[plt.Axes] = None,
     color: Optional[dict[Algorithm, str]] = None,
     linestyle: Optional[dict[Algorithm, str]] = None,
+    error_bounds_for: Literal["precision", "recall"] = "precision"
 ) -> Tuple[plt.Figure, plt.Axes]:
     """
     Plots results of `measure_prec_recall` for `axis`
@@ -262,19 +269,24 @@ def plot_prec_recall_on_axis(
         precisions_std = [result[algorithm_name]["precision_std"] for result in results]
         recalls_std = [result[algorithm_name]["recall_std"] for result in results]
 
-        ax.fill_between(
-            recalls,
-            np.array(precisions) - np.array(precisions_std),
-            np.array(precisions) + np.array(precisions_std),
-            alpha=0.2
-        )
-
-        ax.fill_between(
-            np.array(recalls) - np.array(recalls_std),
-            precisions,
-            precisions,
-            alpha=0.2
-        )
+        if error_bounds_for == "precision":
+            ax.fill_between(
+                recalls,
+                np.array(precisions) - np.array(precisions_std),
+                np.array(precisions) + np.array(precisions_std),
+                alpha=0.2,
+                color=color[algorithm_name] if color is not None else None,
+                linestyle=linestyle[algorithm_name] if linestyle is not None else None,
+            )
+        else:
+            ax.fill_betweenx(
+                precisions,
+                np.array(recalls) - np.array(recalls_std),
+                np.array(recalls) + np.array(recalls_std),
+                alpha=0.2,
+                color=color[algorithm_name] if color is not None else None,
+                linestyle=linestyle[algorithm_name] if linestyle is not None else None,
+            )
 
     ax.set_xlim(0, 1)
     ax.set_ylim(0, 1)
@@ -282,6 +294,9 @@ def plot_prec_recall_on_axis(
     ax.set_ylabel("Precision")
     ax.legend()
     ax.set_title(axis)
+
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
 
     return fig, ax
 
@@ -309,19 +324,29 @@ def generate_confusion_matrices(
     truth = binarize_matrix(truth, eps=0, mode=mode_truth)
     
     # Remove diagonals to prevent counting them in true positives
-    pred.setdiag(0)
-    truth.setdiag(0)
+    pred.setdiag(False)
+    truth.setdiag(False)
 
     pred = pred.tocsr()
     truth = truth.tocsr()
     
+    # pred * truth
     TP = (pred * truth).sum()
     # pred * !truth
-    FP = (pred - pred * truth).sum()
+    FP = (pred > truth).sum()
     # !pred * !truth
-    TN = np.prod(pred.shape) - pred.shape[0] - (pred + truth + pred * truth).sum()
+    TN = (np.prod(pred.shape) - pred.shape[0]) - (pred + truth - pred * truth).sum()
     # !pred * truth
-    FN = (truth - pred * truth).sum()
+    FN = (truth > pred).sum()
+
+    if TP < 0:
+        raise Exception(f"TP < 0: {TP}")
+    if FP < 0:
+        raise Exception(f"FP < 0: {FP}")
+    if TN < 0:
+        raise Exception(f"TN < 0: {TN}")
+    if FN < 0:
+        raise Exception(f"FN < 0: {FN}")
     
     return np.array([
         [TP, FP],
@@ -348,6 +373,7 @@ def recall(
     denom = (cm[0, 0] + cm[1, 0])
     if denom == 0:
         return 1
+    
     return cm[0, 0] / denom
 
 def binarize_matrix(
@@ -360,7 +386,7 @@ def binarize_matrix(
     """
     if not sparse.issparse(M):
         # Convert to sparse array
-        M = sparse.coo_matrix(M)
+        M = sparse.coo_array(M)
     out = M.copy().tocoo()
     out.data = np.ones_like(out.data)
     out = out.astype(np.int8)

@@ -568,6 +568,7 @@ class Dataset:
             modality: self.structure[modality]
             for modality in modalities
         }
+        to_return.recompute_helpers()
         return to_return
     
     def copy(self) -> Dataset:
