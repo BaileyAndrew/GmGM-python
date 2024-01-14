@@ -6,5 +6,7 @@ dist/*
 package-upload-cheatsheet.txt
 examples/data/*
 examples/other_algs/out_figs/*
+*.pyc
 
 .vscode/*
+__pycache__/*

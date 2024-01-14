@@ -13,6 +13,7 @@
 - Now accepts `MuData` with `axis=1`.
 - If `GmGM(key_map != None)`, then `GmGM(to_keep)` can be specified using keys from both the internal representation (`obs`, `{modality}-obs`, `var`, or `{modality}-var`) and from `key_map`.
 - `GmGM.synthetic.plot_prec_recall` now removes spines from top and right of graph, for when the methods are very very good.
+- `GmGM(to_keep=None)` now valid, will reconstruct whole matrix
 
 ### Fixes
 
@@ -20,6 +21,7 @@
 - `GmGM.synthetic.plot_prec_recall` uses correct colors for uncertainty fill
 - `GmGM.synthetic.plot_prec_recall` now finds correct error bounds
 - `binarize_matrix` now correctly produces `sparray` rather than `spmatrix` when the input is not sparse (this led to particularly nasty downstream errors!)
+- `project_inv_kron_sum` formula was wrong for 3-axis and higher due to silly typo; now fixed
 
 ## v0.3.0 (2024/01/04)
 

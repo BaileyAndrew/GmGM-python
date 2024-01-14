@@ -25,6 +25,10 @@ def TeraLasso(
         raise ValueError(
             'TeraLasso only supports one dataset'
         )
+    if len(dataset.batch_axes) == 0:
+        raise ValueError(
+            "Please make the first axis of the dataset a batch axis!"
+        )
     tensor = list(dataset.dataset.values())[0]
     _, *d = tensor.shape
     K = len(d)

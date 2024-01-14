@@ -18,7 +18,7 @@ class _project_inv_kron_sum:
     @nb.jit(
         nopython=True,
         fastmath=True,
-        parallel=False,
+        parallel=True,
         cache=True
     )
     def two_axis(
@@ -49,7 +49,7 @@ class _project_inv_kron_sum:
     @nb.jit(
         nopython=True,
         fastmath=True,
-        parallel=False,
+        parallel=True,
         cache=True
     )
     def three_axis(
@@ -69,7 +69,7 @@ class _project_inv_kron_sum:
                     cur_val: float = 1 / (x[i]+y[j]+z[k])
                     x_out[i] += cur_val
                     y_out[j] += cur_val
-                    z_out[j] += cur_val
+                    z_out[k] += cur_val
 
         # Normalize
         x_out /= x.shape[0]
@@ -109,8 +109,8 @@ class _project_inv_kron_sum:
                         cur_val: float = 1 / (x[i]+y[j]+z[k]+w[l])
                         x_out[i] += cur_val
                         y_out[j] += cur_val
-                        z_out[j] += cur_val
-                        w_out[j] += cur_val
+                        z_out[k] += cur_val
+                        w_out[l] += cur_val
 
         # Normalize
         x_out /= x.shape[0]

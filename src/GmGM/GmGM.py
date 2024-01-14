@@ -6,6 +6,7 @@ from __future__ import annotations
 # Import core functionality of GmGM
 from .core.core import direct_svd, direct_left_eigenvectors
 from .core.core import calculate_eigenvalues, calculate_eigenvectors
+from .core.core import recompose_dense_precisions
 from .core.preprocessing import center, clr_prost, create_gram_matrices
 from .core.presparse_methods import recompose_sparse_precisions
 
@@ -28,7 +29,7 @@ import warnings
 
 def GmGM(
     dataset: Dataset | AnnData,
-    to_keep: MaybeDict[Axis, float | int],
+    to_keep: Optional[MaybeDict[Axis, float | int]] = None,
     random_state: Optional[int] = None,
     batch_size: Optional[int] = None,
     verbose: bool = False,
@@ -188,14 +189,22 @@ def GmGM(
     )
 
     # Recompose sparse precisions
-    if verbose:
-        print("Recomposing sparse precisions...")
-    recompose_sparse_precisions(
-        _dataset,
-        to_keep=to_keep,
-        threshold_method=threshold_method,
-        batch_size=batch_size
-    )
+    if to_keep is not None:
+        if verbose:
+            print("Recomposing sparse precisions...")
+        recompose_sparse_precisions(
+            _dataset,
+            to_keep=to_keep,
+            threshold_method=threshold_method,
+            batch_size=batch_size
+        )
+    else:
+        if verbose:
+            print("Recomposing dense precisions as to_keep was not specified...")
+        recompose_dense_precisions(
+            _dataset,
+        )
+        
 
     # Print memory usage (useful if directly used on `AnnData`/`MuData`)
     if print_memory_usage:

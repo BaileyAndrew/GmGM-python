@@ -430,6 +430,17 @@ def calculate_eigenvalues(
             print("Did not converge!")
 
     return X
+
+def recompose_dense_precisions(X: Dataset) -> Dataset:
+    """
+    Recomposes the dense precision matrices
+    """
+    for axis in X.all_axes:
+        X.precision_matrices[axis] = (
+            (X.evecs[axis] * X.evals[axis])
+            @ X.evecs[axis].T
+        )
+    return X
     
 def _get_log_err(
     evals: dict[Axis, np.ndarray],
