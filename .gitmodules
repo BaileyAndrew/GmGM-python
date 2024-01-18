@@ -4,3 +4,6 @@
 [submodule "examples/other_algs/eiglasso"]
 	path = examples/other_algs/eiglasso
 	url = https://github.com/SeyoungKimLab/EiGLasso
+[submodule "examples/other_algs/ZiLN"]
+	path = examples/other_algs/ZiLN
+	url = https://github.com/vincentprost/Zi-LN
