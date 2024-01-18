@@ -173,12 +173,16 @@ def recompose_sparse_precisions(
     X: Dataset,
     to_keep: float | int | dict[Axis, float | int],
     threshold_method: Literal["overall", "rowwise", "rowwise-col-weighted"] = "overall",
+    dont_recompose: Optional[set[Axis]] = None,
     batch_size: Optional[int] = None,
     verbose: bool = False
 ) -> Dataset:
     """
     Creates a pre-thresholded precision matrix
     """
+
+    if dont_recompose is None:
+        dont_recompose = set({})
 
     if isinstance(to_keep, Real):
         to_keep = {
@@ -189,6 +193,10 @@ def recompose_sparse_precisions(
     # Calculate the precision matrices
     X.precision_matrices: dict[Axis, np.ndarray] = {}
     for axis in X.all_axes:
+        if axis in dont_recompose:
+            if verbose:
+                print(f"Skipping {axis}")
+            continue
         if verbose:
             print(f"Recomposing {axis}")
 

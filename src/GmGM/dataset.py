@@ -355,34 +355,36 @@ class Dataset:
                 "var": "var"
             }
 
-        _add_graph_to_anndata(
-            self.base,
-            self.base_use_highly_variable,
-            key_map["obs"],
-            self.base.shape[0],
-            "obs",
-            key_added,
-            self.precision_matrices["obs"],
-            self.base.obs.highly_variable \
-                if "highly_variable" in self.base.obs \
-                else None,
-            use_abs_of_graph,
-            self.random_state
-        )
-        _add_graph_to_anndata(
-            self.base,
-            self.base_use_highly_variable,
-            key_map["var"],
-            self.base.shape[0],
-            "var",
-            key_added,
-            self.precision_matrices["var"],
-            self.base.var.highly_variable \
-                if "highly_variable" in self.base.obs \
-                else None,
-            use_abs_of_graph,
-            self.random_state
-        )
+        if "obs" in self.precision_matrices:
+            _add_graph_to_anndata(
+                self.base,
+                self.base_use_highly_variable,
+                key_map["obs"],
+                self.base.shape[0],
+                "obs",
+                key_added,
+                self.precision_matrices["obs"],
+                self.base.obs.highly_variable \
+                    if "highly_variable" in self.base.obs \
+                    else None,
+                use_abs_of_graph,
+                self.random_state
+            )
+        if "var" in self.precision_matrices:
+            _add_graph_to_anndata(
+                self.base,
+                self.base_use_highly_variable,
+                key_map["var"],
+                self.base.shape[0],
+                "var",
+                key_added,
+                self.precision_matrices["var"],
+                self.base.var.highly_variable \
+                    if "highly_variable" in self.base.obs \
+                    else None,
+                use_abs_of_graph,
+                self.random_state
+            )
 
         return self.base
     
@@ -466,75 +468,79 @@ class Dataset:
             obs_key = key_map["obs"] if "obs" in key_map else "obs"
 
             # First add the observations axis to the MuData object
-            _add_graph_to_anndata(
-                self.base,
-                self.base_use_highly_variable,
-                obs_key,
-                self.base.shape[0],
-                "obs",
-                key_added,
-                self.precision_matrices["obs"],
-                self.base.obs.highly_variable \
-                    if "highly_variable" in self.base.obs \
-                    else None,
-                use_abs_of_graph,
-                self.random_state
-            )
-            
-            # Then, for each modality, add the features axis to the MuData object
-            for modality in self.base.mod:
-                var_key = key_map[f"{modality}-var"] if f"{modality}-var" in key_map else f"{modality}-var"
+            if "obs" in self.precision_matrices:
                 _add_graph_to_anndata(
-                    self.base[modality],
+                    self.base,
                     self.base_use_highly_variable,
-                    var_key,
-                    self.base[modality].shape[1],
-                    "var",
+                    obs_key,
+                    self.base.shape[0],
+                    "obs",
                     key_added,
-                    self.precision_matrices[f"{modality}-var"],
-                    self.base[modality].var.highly_variable \
-                        if "highly_variable" in self.base[modality].var \
+                    self.precision_matrices["obs"],
+                    self.base.obs.highly_variable \
+                        if "highly_variable" in self.base.obs \
                         else None,
                     use_abs_of_graph,
                     self.random_state
                 )
+            
+            # Then, for each modality, add the features axis to the MuData object
+            for modality in self.base.mod:
+                var_key = key_map[f"{modality}-var"] if f"{modality}-var" in key_map else f"{modality}-var"
+                if f"{modality}-var" in self.precision_matrices:
+                    _add_graph_to_anndata(
+                        self.base[modality],
+                        self.base_use_highly_variable,
+                        var_key,
+                        self.base[modality].shape[1],
+                        "var",
+                        key_added,
+                        self.precision_matrices[f"{modality}-var"],
+                        self.base[modality].var.highly_variable \
+                            if "highly_variable" in self.base[modality].var \
+                            else None,
+                        use_abs_of_graph,
+                        self.random_state
+                    )
         # Is MuData concatenating along the samples axis?
         elif self.base.axis == 1:
             var_key = key_map["var"] if "var" in key_map else "var"
 
             # First add the observations axis to the MuData object
-            _add_graph_to_anndata(
-                self.base,
-                self.base_use_highly_variable,
-                var_key,
-                self.base.shape[0],
-                "var",
-                key_added,
-                self.precision_matrices["var"],
-                self.base.var.highly_variable \
-                    if "highly_variable" in self.base.var \
-                    else None,
-                use_abs_of_graph,
-                self.random_state
-            )
-            
-            # Then, for each modality, add the features axis to the MuData object
-            for modality in self.base.mod:
-                obs_key = key_map[f"{modality}-obs"] if f"{modality}-obs" in key_map else f"{modality}-obs"
+            if "var" in self.precision_matrices:
                 _add_graph_to_anndata(
-                    self.base[modality],
+                    self.base,
                     self.base_use_highly_variable,
-                    obs_key,
-                    self.base[modality].shape[1],
-                    "obs",
+                    var_key,
+                    self.base.shape[0],
+                    "var",
                     key_added,
-                    self.precision_matrices[f"{modality}-obs"],
-                    self.base[modality].obs.highly_variable \
-                        if "highly_variable" in self.base[modality].obs \
+                    self.precision_matrices["var"],
+                    self.base.var.highly_variable \
+                        if "highly_variable" in self.base.var \
                         else None,
                     use_abs_of_graph,
                     self.random_state
                 )
+            
+            # Then, for each modality, add the features axis to the MuData object
+            for modality in self.base.mod:
+                obs_key = key_map[f"{modality}-obs"] if f"{modality}-obs" in key_map else f"{modality}-obs"
+                if f"{modality}-obs" in self.precision_matrices:
+                    _add_graph_to_anndata(
+                        self.base[modality],
+                        self.base_use_highly_variable,
+                        obs_key,
+                        self.base[modality].shape[1],
+                        "obs",
+                        key_added,
+                        self.precision_matrices[f"{modality}-obs"],
+                        self.base[modality].obs.highly_variable \
+                            if "highly_variable" in self.base[modality].obs \
+                            else None,
+                        use_abs_of_graph,
+                        self.random_state
+                    )
         # Is MuData concatenating along both axes?
         elif self.base.axis == -1:
             raise NotImplementedError("Concatenating along both axes is not yet supported.")

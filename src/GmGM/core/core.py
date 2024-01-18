@@ -431,11 +431,18 @@ def calculate_eigenvalues(
 
     return X
 
-def recompose_dense_precisions(X: Dataset) -> Dataset:
+def recompose_dense_precisions(
+    X: Dataset,
+    dont_recompose: Optional[set[Axis]] = None
+) -> Dataset:
     """
     Recomposes the dense precision matrices
     """
+    if dont_recompose is None:
+        dont_recompose = set({})
     for axis in X.all_axes:
+        if axis in dont_recompose:
+            continue
         X.precision_matrices[axis] = (
             (X.evecs[axis] * X.evals[axis])
             @ X.evecs[axis].T

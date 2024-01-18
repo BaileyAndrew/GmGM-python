@@ -136,6 +136,15 @@ def threshold_matrix(
     np.fill_diagonal(Psi, diagonal)
     return Psi
 
+def threshold_dictionary(
+    Psi: dict[Axis, np.ndarray],
+    sparsity: dict[Axis, float],
+) -> np.ndarray:
+    return {
+        axis: threshold_matrix(Psi[axis], sparsity[axis])
+        for axis in Psi
+    }
+
 def make_sparse_small_spectrum(
     Psi: np.ndarray,
     sparsity: float,

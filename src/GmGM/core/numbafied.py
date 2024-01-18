@@ -18,7 +18,7 @@ class _project_inv_kron_sum:
     @nb.jit(
         nopython=True,
         fastmath=True,
-        parallel=True,
+        parallel=False,
         cache=True
     )
     def two_axis(
@@ -49,7 +49,7 @@ class _project_inv_kron_sum:
     @nb.jit(
         nopython=True,
         fastmath=True,
-        parallel=True,
+        parallel=False,
         cache=True
     )
     def three_axis(

@@ -54,6 +54,7 @@ def GmGM(
     check_overstep_each_iter: bool = False,
     # `recompose_sparse_positions` parameters
     threshold_method: Literal["overall", "rowwise", "rowwise-col-weighted"] = "rowwise-col-weighted",
+    dont_recompose: Optional[set[Axis]] = None,
     # from_AnnData/MuData parameters
     use_highly_variable: bool = False,
     key_added: str = "gmgm",
@@ -196,13 +197,15 @@ def GmGM(
             _dataset,
             to_keep=to_keep,
             threshold_method=threshold_method,
-            batch_size=batch_size
+            batch_size=batch_size,
+            dont_recompose=dont_recompose
         )
     else:
         if verbose:
             print("Recomposing dense precisions as to_keep was not specified...")
         recompose_dense_precisions(
             _dataset,
+            dont_recompose=dont_recompose
         )
         
 

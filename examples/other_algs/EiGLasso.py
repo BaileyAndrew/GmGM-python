@@ -9,6 +9,7 @@ from GmGM import Dataset
 from GmGM.core.preprocessing import create_gram_matrices
 from GmGM.typing import Axis
 import warnings
+import scipy.sparse as sparse
 
 eng = matlab.engine.start_matlab()
 
@@ -29,6 +30,9 @@ def EiGLasso(
             'EiGLasso only supports one dataset'
         )
     tensor = list(dataset.dataset.values())[0]
+
+    if tensor.ndim == 2:
+        tensor = tensor.reshape(1, *tensor.shape)
     _, *d = tensor.shape
     K = len(d)
     if K != 2:
@@ -58,18 +62,13 @@ def EiGLasso(
 
     stdout = {} if verbose else {"stdout": io.StringIO()}
     
-    Psi_init = np.linalg.inv(T)
-    Psi_init = matlab.double(Psi_init)
-    Theta_init = np.linalg.inv(S)
-    Theta_init = matlab.double(Theta_init)
-    
     # Call matlab (which itself calls the
     # compiled c++ file `eiglasso_joint_mex.cpp`)
     Theta, Psi, _, _ = eng.eiglasso_joint(
         S_,
         T_,
-        beta_2,
         beta_1,
+        beta_2,
         nargout=4,
         **stdout
     )
@@ -81,6 +80,12 @@ def EiGLasso(
     # They're not symmetric though...
     Theta = (Theta + Theta.T) / 2
     Psi = (Psi + Psi.T) / 2
+
+    # Make sparse
+    if beta_1 != 0:
+        Theta = sparse.csr_array(Theta)
+    if beta_2 != 0:
+        Psi = sparse.csr_array(Psi)
     
     dataset.precision_matrices = {
         axis: matrix

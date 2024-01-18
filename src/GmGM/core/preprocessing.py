@@ -14,6 +14,7 @@ from ..typing import Axis
 import scipy.stats as stats
 import scipy.sparse as sparse
 import numpy as np
+import numbers
 
 import warnings
 
@@ -125,6 +126,8 @@ def create_gram_matrices(
 
     # Divide gram matrices by effective number of modalities of samples seen
     for axis in X.gram_matrices.keys():
+        if issubclass(X.gram_matrices[axis].dtype.type, numbers.Integral):
+            X.gram_matrices[axis] = X.gram_matrices[axis].astype(float)
         X.gram_matrices[axis] /= num_samples[axis]
 
     return X
@@ -162,6 +165,9 @@ def _grammify_core(
 
         # Avoid divide by zero
         diags[diags == 0] = 1
+
+        if issubclass(output.dtype.type, numbers.Integral):
+            output = output.astype(float)
 
         output /= diags[:, np.newaxis]
         output /= diags[np.newaxis, :]

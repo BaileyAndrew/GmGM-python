@@ -8,6 +8,7 @@ import numpy as np
 from GmGM import Dataset
 from GmGM.core.preprocessing import create_gram_matrices
 from GmGM.typing import Axis
+import scipy.sparse as sparse
 
 eng = matlab.engine.start_matlab()
 eng.addpath(
@@ -30,6 +31,9 @@ def TeraLasso(
             "Please make the first axis of the dataset a batch axis!"
         )
     tensor = list(dataset.dataset.values())[0]
+    structure = list(dataset.structure.values())[0]
+    if structure[0] != '':
+        tensor = tensor.reshape(1, *tensor.shape)
     _, *d = tensor.shape
     K = len(d)
     
@@ -61,7 +65,7 @@ def TeraLasso(
     Psis = {}
     
     for (axis, _), Psi in zip(Ss.items(), Psis_matlab):
-        Psis[axis] = np.asarray(Psi)
+        Psis[axis] = sparse.csr_array(np.asarray(Psi))
     
     dataset.precision_matrices = Psis
     return dataset
