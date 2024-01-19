@@ -20,7 +20,8 @@ def TeraLasso(
     dataset: Dataset,
     beta: float,
     use_nonparanormal_skeptic: bool = False,
-    max_iter: int = 100
+    max_iter: int = 100,
+    tol: float = 1e-8
 ) -> Dataset:
     if len(dataset.dataset) != 1:
         raise ValueError(
@@ -49,13 +50,14 @@ def TeraLasso(
 
     d_matlab = matlab.double(d)
     betas_matlab = matlab.double([beta for _ in range(K)])
+    tol_matlab = matlab.double(tol)
 
     Psis_matlab = eng.teralasso(
         [matrix for _, matrix in Ss.items()],
         d_matlab,
         'L1',
         0,
-        1e-8,
+        tol_matlab,
         betas_matlab,
         max_iter,
         nargout=1,

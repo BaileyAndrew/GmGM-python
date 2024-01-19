@@ -12,6 +12,7 @@ from .core.presparse_methods import recompose_sparse_precisions
 
 # Used for typing
 from typing import Optional, Literal
+from .extras.prior import Prior
 from .typing import Axis, MaybeDict
 from .dataset import Dataset
 from .extras.regularizers import Regularizer
@@ -60,7 +61,8 @@ def GmGM(
     key_added: str = "gmgm",
     use_abs_of_graph: bool = True,
     key_map: Optional[dict[Axis, Axis]] = None,
-    readonly: bool = True
+    readonly: bool = True,
+    prior: Optional[dict[Axis, Prior]] = None,
 ) -> Dataset | AnnData | MuData:
     """
     Performs GmGM on the given dataset.
@@ -70,10 +72,19 @@ def GmGM(
     is_mudata: bool = MuData is not None and isinstance(dataset, MuData)
     if is_anndata:
         _dataset = Dataset.from_AnnData(dataset, use_highly_variable=use_highly_variable)
+        if prior is not None:
+            _dataset.prior = prior
     elif is_mudata:
         _dataset = Dataset.from_MuData(dataset, use_highly_variable=use_highly_variable)
+        if prior is not None:
+            _dataset.prior = prior
     else:
         _dataset = dataset
+        if prior is not None:
+            raise ValueError(
+                "Cannot specify `prior` if `dataset` is a Dataset.\n"
+                + "Add it directly to the Dataset instead."
+            )
 
     if readonly:
         _dataset.make_readonly()

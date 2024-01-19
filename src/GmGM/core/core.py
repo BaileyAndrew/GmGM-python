@@ -273,6 +273,7 @@ def calculate_eigenvalues(
             assert axis not in X.batch_axes, \
                 "Batch axes should not be in presences_batchless"
             diffs[axis] = X.es[axis].copy()
+
             for modality, ell in locations.items():
                 if ell is None:
                     continue
@@ -290,8 +291,8 @@ def calculate_eigenvalues(
                     X.Ks[modality],
                 )[ell]
 
-                for axis, prior in X.prior.items():
-                    diffs[axis] += prior.process_gradient(
+                if axis in X.prior:
+                    diffs[axis] += X.prior[axis].process_gradient(
                         X.evals[axis]
                     )
 

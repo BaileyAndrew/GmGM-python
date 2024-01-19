@@ -29,8 +29,10 @@ class _project_inv_kron_sum:
         x_out: np.ndarray = np.zeros(x.shape[0])
         y_out: np.ndarray = np.zeros(y.shape[0])
 
-        for i in nb.prange(x.shape[0]):
-            for j in nb.prange(y.shape[0]):
+        for i in range(x.shape[0]):
+            for j in range(y.shape[0]):
+                # Will not trigger a race condition
+                # as each y_out[j] is only written to once
                 cur_val: float = 1 / (x[i]+y[j])
                 x_out[i] += cur_val
                 y_out[j] += cur_val
@@ -63,9 +65,9 @@ class _project_inv_kron_sum:
         y_out: np.ndarray = np.zeros(y.shape[0])
         z_out: np.ndarray = np.zeros(z.shape[0])
 
-        for i in nb.prange(x.shape[0]):
-            for j in nb.prange(y.shape[0]):
-                for k in nb.prange(z.shape[0]):
+        for i in range(x.shape[0]):
+            for j in range(y.shape[0]):
+                for k in range(z.shape[0]):
                     cur_val: float = 1 / (x[i]+y[j]+z[k])
                     x_out[i] += cur_val
                     y_out[j] += cur_val
@@ -102,10 +104,10 @@ class _project_inv_kron_sum:
         z_out: np.ndarray = np.zeros(z.shape[0])
         w_out: np.ndarray = np.zeros(w.shape[0])
 
-        for i in nb.prange(x.shape[0]):
-            for j in nb.prange(y.shape[0]):
-                for k in nb.prange(z.shape[0]):
-                    for l in nb.prange(w.shape[0]):
+        for i in range(x.shape[0]):
+            for j in range(y.shape[0]):
+                for k in range(z.shape[0]):
+                    for l in range(w.shape[0]):
                         cur_val: float = 1 / (x[i]+y[j]+z[k]+w[l])
                         x_out[i] += cur_val
                         y_out[j] += cur_val

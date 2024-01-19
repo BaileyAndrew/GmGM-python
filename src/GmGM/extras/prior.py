@@ -48,3 +48,5 @@ class Wishart(Prior):
         # h = -1/2 * precmat^-1
         # drop the 1/2 as we ignore it everywhere
         return -1/evals
+    
+    # TODO: add __repr__
