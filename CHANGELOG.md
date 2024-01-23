@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.3.1 (IN PROGRESS)
+## v0.3.1 (23/01/2024)
 
 ### Documentation
 - Updated `examples/danio_rerio.ipynb` to showcase using `GmGM` with `MuData(axis=1)`.
@@ -15,6 +15,7 @@
 - `GmGM.synthetic.plot_prec_recall` now removes spines from top and right of graph, for when the methods are very very good.
 - `GmGM(to_keep=None)` now valid, will reconstruct whole matrix
 - `GmGM` now accepts a `dont_recompose: Optional[set[Axis]]` which will tell it not to bother recomposing a certain axis
+- Priors now addable (but API will change, currently attached to `Dataset`, will move to `GmGM` parameter)
 
 ### Fixes
 
