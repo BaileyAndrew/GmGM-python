@@ -172,7 +172,12 @@ def sparse_grammify(
 def recompose_sparse_precisions(
     X: Dataset,
     to_keep: float | int | dict[Axis, float | int],
-    threshold_method: Literal["overall", "rowwise", "rowwise-col-weighted"] = "overall",
+    threshold_method: Literal[
+        "overall",
+        "overall-col-weighted",
+        "rowwise",
+        "rowwise-col-weighted"
+    ] = "overall",
     dont_recompose: Optional[set[Axis]] = None,
     batch_size: Optional[int] = None,
     verbose: bool = False
@@ -216,6 +221,13 @@ def recompose_sparse_precisions(
         # Simultaneously compute and threshold our precision matrix
         if threshold_method == "overall":
             X.precision_matrices[axis] = _estimate_sparse_gram(
+                half,
+                to_keep[axis],
+                batch_size,
+                verbose=verbose
+            )
+        elif threshold_method == "overall-col-weighted":
+            X.precision_matrices[axis] = _estimate_sparse_gram_col_weighted(
                 half,
                 to_keep[axis],
                 batch_size,
@@ -320,6 +332,176 @@ def _estimate_sparse_gram(
         # Remove everything above diagonal so it does not affect thresholding!
         # (due to symmetry)
         res_batch[np.triu_indices(increase)] = 0
+
+        # We only need to check the `num_to_keep` largest elements
+        # in this batch!
+        to_check = min(num_to_keep, res_batch.size)
+        flat_res_batch = res_batch.reshape(-1)
+        largest_idxs = np.argpartition(
+            (res_batch / diags).reshape(-1),
+            -to_check,
+            axis=None
+        )[-to_check:]
+        rows = largest_idxs // res_batch.shape[1]
+        cols = largest_idxs % res_batch.shape[1]
+
+        # Remove any elements that are smaller than the smallest kept
+        candidates = flat_res_batch[largest_idxs] > result.data[num_to_keep]
+        flat_res_batch = flat_res_batch[largest_idxs][candidates]
+        rows = rows[candidates]
+        cols = cols[candidates]
+
+        if flat_res_batch.size == 0:
+            # Nothing to add!
+            continue
+
+        # Figure out how many elements we can add
+        sorted = np.argsort(flat_res_batch)
+        flat_res_batch = flat_res_batch[sorted]
+        rows = rows[sorted]
+        cols = cols[sorted]
+        amount = (result.data < flat_res_batch[-1]).sum()
+        amount = min(flat_res_batch.size, amount)
+
+        if amount == 0:
+            # Nothing to add!
+            continue
+
+        # Add these to the data!
+        result.data[:amount] = flat_res_batch[-amount:]
+        result.row[:amount] = rows[-amount:] + i
+        result.col[:amount] = cols[-amount:] + i
+
+        # And sort the data
+        # Note that this makes the complexity klogk where k is the number
+        # of elements to keep; this is slower than the older implementation
+        # using dictionaries and dok_arrays.
+        # However, because everything is vectorized here, and k is typically
+        # quite small, and log k is smaller still, this is MUCH faster in practice.
+        sorted = np.argsort(result.data)
+        result.data = result.data[sorted]
+        result.row = result.row[sorted]
+        result.col = result.col[sorted]
+
+        # Bottleneck (>75-80% runtime) for large (10,000x10,000) data is the matrix multiplication
+        # when keeping on average 10 edges per row (i.e. k=100,000).
+        # The sorts account for ~5-10% of runtime.
+        #
+        # Argpartition is linear time in the number of elements to partition, and it takes ~15%.
+
+    # Remove the excess memory
+    result.data = result.data[num_to_keep:]
+    result.row = result.row[num_to_keep:]
+    result.col = result.col[num_to_keep:]
+
+    return result
+
+def _estimate_sparse_gram_col_weighted(
+    matrix: DataTensor,
+    percent_to_keep: float,
+    batch_size: Optional[int] = None,
+    divide_by_diagonal: bool = False,
+    verbose: bool = False
+) -> sparse.sparray:
+    """
+    Computes matrix @ matrix.T in a sparse manner.
+    """
+
+    if batch_size is None:
+        batch_size = min(matrix.shape[0], 1000)
+
+    assert percent_to_keep >= 0 and percent_to_keep <= 1, \
+        "`percent_to_keep` must be between 0 and 1"
+
+    features, _ = matrix.shape
+    num_to_keep: int = int(percent_to_keep * (features**2 - features) / 2)
+
+    # Construct column weights - because we are using absolute value,
+    # this is more complicated!
+    # Equivalent to:
+    #   col_weights = np.abs(matrix @ matrix.T).sum(axis=0)
+    col_weights = np.zeros(features, dtype=np.float32)
+    for i in range(0, features + batch_size, batch_size):
+        if i >= features:
+            break
+        # Compute the entire row at once to save time
+        # Assuming we have space that is linear in axis length
+        # (a reasonable assumption)
+        # then this is okay to do!
+        increase: int = min(batch_size, features - i)
+        res_batch: np.ndarray
+        if isinstance(matrix, sparse.sparray):
+            # Warning: this implementation becomes quite slow
+            # when the matrices are very large.  Better to,
+            # if possible, work with dense matrices.
+            rhs = matrix[i:i+increase].toarray().T
+            res_batch = np.abs(matrix @ rhs)
+        else:
+            res_batch = np.abs(matrix @ matrix[i:i+increase].T)
+
+        # Remove the diagonal so it does not affect the sum!
+        np.fill_diagonal(res_batch[i:], 0)
+
+        col_weights[i:i+increase] += res_batch.sum(axis=0)
+
+
+    col_weights[col_weights == 0] = 1
+    col_weights = col_weights.reshape(-1, 1)
+
+    # Create a sparse array to store the result
+    # We are always gonna keep it so smallest kept value is at `num_to_keep`
+    # Note that this uses twice as much memory as we ultimately will need,
+    # because we want to zipper-sort the old data and new data in the end.
+    # If there is a vectorized way to zipper-sort, rather than concatenating them,
+    # then we can save this memory.  But idk how!
+    result = sparse.coo_array(
+        (
+            np.zeros(2*num_to_keep, dtype=np.float32),
+            (
+                np.zeros(2*num_to_keep, dtype=np.int32),
+                np.zeros(2*num_to_keep, dtype=np.int32)
+            )
+        ),
+        shape=(features, features),
+    )
+
+    if num_to_keep == 0:
+        # Nothing to do!
+        return result
+
+
+    for i in range(0, features + batch_size, batch_size):
+        if i >= features:
+            break
+        # Compute the entire row at once to save time
+        # Assuming we have space that is linear in axis length
+        # (a reasonable assumption)
+        # then this is okay to do!
+        increase: int = min(batch_size, features - i)
+        res_batch: np.ndarray
+        if isinstance(matrix, sparse.sparray):
+            # Warning: this implementation becomes quite slow
+            # when the matrices are very large.  Better to,
+            # if possible, work with dense matrices.
+            rhs = matrix[i:i+increase].toarray().T
+            res_batch = np.abs(matrix[i:] @ rhs)
+        else:
+            res_batch = np.abs(matrix[i:] @ matrix[i:i+increase].T)
+
+        # Remove the diagonal so it does not affect thresholding!
+        diags = np.diagonal(res_batch).copy()
+        if divide_by_diagonal:
+            diags[diags == 0] = 1
+            np.fill_diagonal(res_batch, 0)
+        else:
+            diags[:] = 1
+
+        # Remove everything above diagonal so it does not affect thresholding!
+        # (due to symmetry)
+        res_batch[np.triu_indices(increase)] = 0
+
+        # Take into account the col weights
+        res_batch = res_batch / col_weights[i:]
 
         # We only need to check the `num_to_keep` largest elements
         # in this batch!

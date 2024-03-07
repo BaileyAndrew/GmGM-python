@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import numpy as np
+from ..typing import MaybeDict, Axis
+from numbers import Number
 
 class Regularizer:
     """
@@ -14,17 +16,21 @@ class Regularizer:
 
     def __init__(
         self,
-        rhos: dict[str, np.ndarray]
+        rhos: MaybeDict[Axis, np.ndarray],
+        compute_loss: bool = False,
     ):
         """
         Initializes the regularizer with a set of penalties `rhos`.
+
+        If compute_loss is false, does not compute loss terms each iteration
         """
         self.rhos = rhos
+        self.compute_loss = compute_loss
 
     def loss(
         self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
+        evals: dict[Axis, np.ndarray],
+        evecs: dict[Axis, np.ndarray],
     ) -> float:
         """
         Returns the loss of the regularizer
@@ -32,204 +38,82 @@ class Regularizer:
         """
         pass
 
-    def grad(
+    def prox(
         self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
-    ) -> dict[str, np.ndarray]:
+        evals: dict[Axis, np.ndarray],
+        evecs: dict[Axis, np.ndarray],
+    ) -> dict[Axis, np.ndarray]:
         """
-        Returns the gradient of the regularizer
-            on a set of eigenvalues and eigenvectors.
+        The proximal operator of the regularizer.
         """
         pass
 
-class L1(Regularizer):
+class SpectralL1(Regularizer):
     """
-    Restricted L1 Regularizer.
-    """
+    L1 regularizer of off-diagonal elements of the precision matrix, where the evecs are known
+        and the evals are all that vary.
 
-    def __init__(
-        self,
-        rhos: dict[str, np.ndarray]
-    ):
-        super().__init__(rhos)
-
-        # Keep track of reconstructed matrices
-        #  to avoid recomputing them.
-
-        self.reconstructions: np.ndarray = {}
-
-    def loss(
-        self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
-    ) -> float:
-        to_return = 0
-        for axis, recon in self.reconstructions.items():
-            to_return += self.rhos[axis] * np.abs(recon).sum()
-        return to_return
-
-    def grad(
-        self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
-    ) -> dict[str, np.ndarray]:
-        to_return: dict[str, np.ndarray] = {}
-        for axis in evals.keys():
-            if self.rhos[axis] == 0:
-                to_return[axis] = np.zeros_like(evals[axis])
-                continue
-            self.reconstructions[axis] = (
-                (evecs[axis] * evals[axis]) @ evecs[axis].T
-            )
-            np.fill_diagonal(self.reconstructions[axis], 0)
-            core: np.ndarray = np.sign(
-                self.reconstructions[axis]
-            )
-            to_return[axis] = self.rhos[axis] * np.einsum(
-                "ij, ia, ja -> a",
-                core,
-                evecs[axis],
-                evecs[axis],
-                optimize=True
-            )
-        return to_return
-    
-class L1Approx(Regularizer):
-    """
-    L1 Regularizer using an approximate reconstruction
+    Calculating the loss is quite expensive so I'd recommend compute_loss to be false
     """
 
     def __init__(
         self,
-        rhos: dict[str, np.ndarray],
-        num_eigs: int = 1
+        rhos: MaybeDict[Axis, np.ndarray],
+        compute_loss: bool = False,
     ):
-        super().__init__(rhos)
+        """
+        Initializes the regularizer with a set of penalties `rhos`.
 
-        self.num_eigs = num_eigs
+        If compute_loss is false, does not compute loss terms each iteration
+        """
+        super().__init__(rhos, compute_loss)
 
-        # Keep track of reconstructed matrices
-        #  to avoid recomputing them.
-        self.reconstructions: np.ndarray = {}
+        self.shift_terms = {}
 
     def loss(
         self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
+        evals: dict[Axis, np.ndarray],
+        evecs: dict[Axis, np.ndarray],
     ) -> float:
-        to_return = 0
-        for axis, recon in self.reconstructions.items():
-            to_return += self.rhos[axis] * np.abs(recon).sum()
-        return to_return
-
-    def grad(
-        self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
-    ) -> dict[str, np.ndarray]:
-        to_return: dict[str, np.ndarray] = {}
-        for axis in evals.keys():
-            if self.rhos[axis] == 0:
-                to_return[axis] = np.zeros_like(evals[axis])
-                continue
-            # Grab the top `num_eigs` eigenvalues and eigenvectors
-            #  and reconstruct the matrix from them.
-            top_idx = np.argpartition(evals[axis], -self.num_eigs)[-self.num_eigs:]
-
-            top_evecs = evecs[axis][:, top_idx]
-            top_evals = evals[axis][top_idx]
-
-            self.reconstructions[axis] = (
-                (top_evecs * top_evals) @ top_evecs.T
-            )
-
-            np.fill_diagonal(self.reconstructions[axis], 0)
-            core: np.ndarray = np.sign(
-                self.reconstructions[axis]
-            )
-            to_return[axis] = np.zeros_like(evals[axis])
-            to_return[axis][top_idx] = self.rhos[axis] * np.einsum(
-                "ij, ia, ja -> a",
-                core,
-                top_evecs,
-                top_evecs,
-                optimize=True
-            )
-
-        return to_return
-    
-class L2(Regularizer):
-    """
-    L2 Regularizer
-
-    This is same as the Frobenius norm.
-    Hence, we can just take the magnitude of
-        the eigenvalues!
-    """
-
-    def __init__(
-        self,
-        rhos: dict[str, np.ndarray]
-    ):
-        super().__init__(rhos)
-
-        # Keep track of magnitudes to avoid recomputations
-        self.magnitudes: dict[str, float] = {}
-    
-
-    def loss(
-        self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
-    ) -> float:
+        if not self.compute_loss:
+            return 0
         to_return = 0
         for axis in evals.keys():
-            if self.rhos[axis] == 0:
-                continue
-            to_return += self.rhos[axis] * self.magnitudes[axis]
+            reconstructed = (evecs[axis] * evals[axis]) @ evecs[axis].T
+            to_return += self.rhos[axis] * np.abs(reconstructed).sum()
         return to_return
     
-    def grad(
+    def prox(
         self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
-    ) -> dict[str, np.ndarray]:
-        to_return: dict[str, np.ndarray] = {}
+        evals: dict[Axis, np.ndarray],
+        evecs: dict[Axis, np.ndarray],
+        t: float
+    ) -> dict[Axis, np.ndarray]:
+        to_return = {}
         for axis in evals.keys():
-            if self.rhos[axis] == 0:
-                to_return[axis] = np.zeros_like(evals[axis])
+            eval = evals[axis]
+            evec = evecs[axis]
+            if isinstance(self.rhos, Number):
+                rho = t * self.rhos
+            else:
+                rho = t * self.rhos[axis]
+
+            if axis not in self.shift_terms:
+                # Calculate for the first time
+                abs_evec = np.abs(evec)
+                shift_term = np.einsum("ai, bi -> i", abs_evec, abs_evec)
+                self.shift_terms[axis] = shift_term
+            else:
+                # Stored computed shift term
+                shift_term = self.shift_terms[axis]
+
+            if np.isinf(rho):
+                # As rho gets arbitrarily large, the proximal operator converges to
+                # the shift_term.
+                to_return[axis] = shift_term
                 continue
-            self.magnitudes[axis] = np.linalg.norm(evals[axis])
-            to_return[axis] = self.rhos[axis] / self.magnitudes[axis] * evals[axis]
-        return to_return
-    
-class Random(Regularizer):
-    """
-    Not actually a regularizer, just adds randomness to the gradient.
 
-    Does poorly.
-    """
+            # This is the proximal operator
+            to_return[axis] = (eval + rho * shift_term) / (1 + rho)
 
-    def __init__(
-        self,
-        rhos: dict[str, np.ndarray]
-    ):
-        super().__init__(rhos)
-
-    def loss(
-        self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
-    ) -> float:
-        return 0
-
-    def grad(
-        self,
-        evals: dict[str, np.ndarray],
-        evecs: dict[str, np.ndarray],
-    ) -> dict[str, np.ndarray]:
-        to_return: dict[str, np.ndarray] = {}
-        for axis in evals.keys():
-            to_return[axis] = self.rhos[axis] * np.random.random(evals[axis].shape)
         return to_return

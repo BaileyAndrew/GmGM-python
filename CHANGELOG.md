@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.3.2 (IN PROGRESS)
+
+### Improvements
+- Added `overall-col-weighted` thresholding method
+- Rewrote `extras.regularizers.py`, adding proximal operator of spectrally-restricted L1
+
 ## v0.3.1 (23/01/2024)
 
 ### Documentation

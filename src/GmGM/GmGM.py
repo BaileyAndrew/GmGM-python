@@ -167,6 +167,7 @@ def GmGM(
     else:
         if verbose:
             print("\tby calculating gram matrices and then eigendecomposing...")
+        warnings.warn("This is outdated, will swap to using direct_left_eigenvectors in the future")
         # Create Gram matrices
         create_gram_matrices(
             _dataset,

@@ -297,14 +297,8 @@ def calculate_eigenvalues(
                     )
 
         # Add regularization if necessary
-        # Only activates after converging to the MLE
-        if regularizing:
-            regs: dict[str, np.ndarray] = regularizer.grad(
-                X.evals,
-                X.evecs,
-            )
-            for axis in X.all_axes:
-                diffs[axis] += regs[axis]
+        # if regularizing:
+        #     diffs = regularizer.prox(diffs, X.evecs)
 
         # Backtracking line search
         line_search_gave_up: bool = False
@@ -400,6 +394,10 @@ def calculate_eigenvalues(
                 regularizer
             )
             err: float = log_err + trace_err + reg_err
+
+        # Apply proximal operator
+        if regularizing:
+            X.evals = regularizer.prox(X.evals, X.evecs, step_lr)
 
         # Calculate the change in error and
         # whether or not we can consider
