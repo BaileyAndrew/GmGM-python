@@ -133,15 +133,22 @@ def GmGM(
     if verbose:
         print("Calculating eigenvectors...")
 
-    # We can skip the gram matrix calculation by doing SVD directly
-    # Bringing memory usage down from O(n^2) to O(n) if `n_comps`` is O(1)
-    # In my experience it slows you down if we want all eigenvectors, so
-    # we only do this if `n_comps`` is specified
+
+    # Check properties of dataset to find the best way to calculate eigenvectors
     unimodal: bool = len(_dataset.dataset) == 1
-    issparse = all([
+    sparseness = [
         sparse.issparse(_dataset.dataset[key])
         for key in _dataset.dataset.keys()
-    ])
+    ]
+    allsparse = all(sparseness)
+    anysparse = any(sparseness)
+
+    if anysparse and not allsparse:
+        warnings.warn(
+            "Some axes are sparse, but not all. This is a hard case to account for,"
+            + " and will likely lead to densification or slower performance (or both)."
+        )
+
     matrix_variate: bool = all([
         _dataset.dataset[key].ndim == 2
         for key in _dataset.dataset.keys()
@@ -164,7 +171,7 @@ def GmGM(
     # get sparse matrices to work with dask, so I have deferred that to later
     # TODO: This works in the tensor-variate case, but needs a more flexible library than
     # scipy.sparse, which limits us to 2D matrices
-    elif unimodal and matrix_variate and n_comps is not None and use_nonparanormal_skeptic and issparse:
+    elif unimodal and matrix_variate and n_comps is not None and use_nonparanormal_skeptic and allsparse:
         if verbose:
             print("\tby calculating left eigenvectors and applying a rank-one update...")
         nonparanormal_left_eigenvectors(
