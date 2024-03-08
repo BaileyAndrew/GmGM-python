@@ -5,6 +5,7 @@ from __future__ import annotations
 
 # Import core functionality of GmGM
 from .core.core import direct_svd, direct_left_eigenvectors
+from .core.core import nonparanormal_left_eigenvectors
 from .core.core import calculate_eigenvalues, calculate_eigenvectors
 from .core.core import recompose_dense_precisions
 from .core.preprocessing import center, clr_prost, create_gram_matrices
@@ -28,6 +29,9 @@ except ImportError:
 # For warnings
 import warnings
 
+# For checking sparsity
+import scipy.sparse as sparse
+
 def GmGM(
     dataset: Dataset | AnnData,
     to_keep: Optional[MaybeDict[Axis, float | int]] = None,
@@ -36,7 +40,7 @@ def GmGM(
     verbose: bool = False,
     print_memory_usage: bool = False,
     # `center` parameters
-    centering_method: Optional[Literal["avg-overall", "clr-prost"]] = "avg-overall",
+    centering_method: Optional[Literal["avg-overall", "clr-prost"]] = None,
     # `create_gram_matrices` parameters
     use_nonparanormal_skeptic: bool = False,
     nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
@@ -134,6 +138,10 @@ def GmGM(
     # In my experience it slows you down if we want all eigenvectors, so
     # we only do this if `n_comps`` is specified
     unimodal: bool = len(_dataset.dataset) == 1
+    issparse = all([
+        sparse.issparse(_dataset.dataset[key])
+        for key in _dataset.dataset.keys()
+    ])
     matrix_variate: bool = all([
         _dataset.dataset[key].ndim == 2
         for key in _dataset.dataset.keys()
@@ -141,12 +149,28 @@ def GmGM(
 
     # If dataset is a single matrix, then we can do SVD on said matrix
     # to get the eigenvectors for both axes at once
+    # (But under the nonparanormal skeptic, this trick wouldn't work)
     if unimodal and matrix_variate and n_comps is not None and not use_nonparanormal_skeptic:
         if verbose:
             print("\tby calculating SVD...")
         direct_svd(
             _dataset,
             n_comps=n_comps,
+            random_state=random_state,
+        )
+    # If dataset is a single matrix, but we want to use the nonparanormal skeptic,
+    # we can do it similarly to direct_left_eigenvectors, using a rank-one update trick.
+    # TODO: The trick would also work in the multi-modal case, but it is harder to
+    # get sparse matrices to work with dask, so I have deferred that to later
+    # TODO: This works in the tensor-variate case, but needs a more flexible library than
+    # scipy.sparse, which limits us to 2D matrices
+    elif unimodal and matrix_variate and n_comps is not None and use_nonparanormal_skeptic and issparse:
+        if verbose:
+            print("\tby calculating left eigenvectors and applying a rank-one update...")
+        nonparanormal_left_eigenvectors(
+            _dataset,
+            n_comps=n_comps,
+            nonparanormal_evec_backend=nonparanormal_evec_backend,
             random_state=random_state,
         )
     # If dataset is multi-modal or tensor-variate, we can find the left
@@ -162,8 +186,11 @@ def GmGM(
             nonparanormal_evec_backend=nonparanormal_evec_backend,
             random_state=random_state,
         )
-    # If dataset is multi-modal or is tensor-variate, we need to calculate the gram matrices
-    # An O(n^2) memory operation
+    # If `n_comps` is not specified, we do it the old way, which is
+    # an O(n^2) memory operation!
+    # TODO: Update old way to still only keep min(n, m) eigenvectors/values
+    # since the rest are useless (correspond to 0 eigenvalues) and
+    # in fact are detrimental due to MLE existance reasons
     else:
         if verbose:
             print("\tby calculating gram matrices and then eigendecomposing...")

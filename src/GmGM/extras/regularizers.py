@@ -48,12 +48,14 @@ class Regularizer:
         """
         pass
 
-class SpectralL1(Regularizer):
+class SpectralAbsoluteL1(Regularizer):
     """
     L1 regularizer of off-diagonal elements of the precision matrix, where the evecs are known
         and the evals are all that vary.
 
     Calculating the loss is quite expensive so I'd recommend compute_loss to be false
+
+    TODO: update docstring, this does not quite equal the Sectral L1 regularizer
     """
 
     def __init__(

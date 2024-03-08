@@ -63,7 +63,7 @@ def direct_left_eigenvectors(
                 # Convert data to uniform distribution
                 # (Need to add 1 because otherwise 1 would be maximum value and this maps to infinity)
                 full_matricized = da.apply_along_axis(
-                    stats.rankdata,
+                    lambda a: stats.rankdata(a, method="average"),
                     0,
                     full_matricized,
                     shape=(full_matricized.shape[0],)
@@ -93,7 +93,69 @@ def direct_left_eigenvectors(
 
     return X
 
+def nonparanormal_left_eigenvectors(
+    X: Dataset,
+    n_comps: Optional[int] = None,
+    nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
+    random_state: Optional[int] = None
+) -> Dataset:
+    """
+    Similar to `direct_left_eigenvectors` but does not densify the dataset
+    when it is sparse.
 
+    TODO: Currently only works when dataset is unimodal
+    """
+
+    if nonparanormal_evec_backend is None:
+        warnings.warn("`nonparanormal_evec_backend` unspecified, defaulting to `COCA`")
+        nonparanormal_evec_backend = "COCA"
+
+    if nonparanormal_evec_backend == "XPCA":
+        raise NotImplementedError("XPCA backend not yet implemented")
+
+    unimodal = len(X.dataset) == 1
+
+    if not unimodal:
+        raise NotImplementedError(
+            "Currently only implemented for unimodal datasets,"
+            + " although there is no theoretical barrier to its extension."
+        )
+    
+    if unimodal:
+        dataset = X.dataset[list(X.dataset.keys())[0]]
+        axes = list(X.structure.values())[0]
+
+        for i, axis in enumerate(axes):
+            if axis in X.batch_axes:
+                continue
+
+            if i >= 2:
+                raise NotImplementedError(
+                    "Currently only implemented for unimodal datasets,"
+                    + " as scipy.sparse does not support higher-dimensional arrays."
+                )
+
+            if i == 0:
+                A, b = _sparse_normal_map(dataset)
+            elif i == 1:
+                A, b = _sparse_normal_map(dataset.T)
+
+            # Compute the SVD of A
+            V_1, Lambda, V_2T = sparse.linalg.svds(
+                A,
+                k=n_comps,
+                random_state=random_state
+            )
+            V_2 = V_2T.T
+
+            # Rank-one update to get SVD of A + 1@b.T
+            V_1, Lambda, V_2 = _svd_rank_one_update(V_1, Lambda, V_2, b)
+
+            X.evecs[axis] = V_1
+            X.es[axis] = Lambda ** 2
+
+    return X
+        
 
 
 def direct_svd(
@@ -500,3 +562,96 @@ def _get_reg_err(
     else:
         reg_err: float = 0
     return reg_err
+
+def _svd_rank_one_update(U, S, V, a):
+    """
+    Computes SVD of USV^T + a1^T via rank one update.
+    """
+    p, r = U.shape
+    q, _ = V.shape
+
+    # Make sure this constitutes a valid SVD
+    assert S.shape == (r,)
+    assert a.shape == (q,)
+    assert U.shape == (p, r)
+    assert V.shape == (q, r)
+
+    # Orthogonal projection vectors
+    m = U.sum(axis=0)
+    P = 1 - U @ m
+    R_a = np.linalg.norm(P)
+    P /= R_a
+
+    n = V.T @ a
+    Q = a - V @ n
+    R_b = np.linalg.norm(Q)
+    Q /= R_b
+
+
+    # Create the K that should be eigendecomped
+    K1 = np.zeros((r+1, r+1))
+    np.fill_diagonal(K1[:r, :r], S)
+    K2 = (
+        np.concatenate((m, np.array([R_a]))).reshape(-1, 1)
+        @ np.concatenate((n, np.array([R_b]))).reshape(1, -1)
+    )
+    K = K1 + K2
+
+    # Inner eigendecomp
+    Up, Sf, VpT = np.linalg.svd(K)
+    Vp = VpT.T
+
+    # Results
+    Uf = np.hstack((U, P.reshape(-1, 1))) @ Up
+    Vf = np.hstack((V, Q.reshape(-1, 1))) @ Vp
+    
+    return Uf, Sf, Vf
+
+def _sparse_normal_map(
+    X: sparse.sparray,
+    method: Literal["min", "average", "max"] = "average"
+) -> tuple[sparse.sparray, np.ndarray]:
+    """
+    Given a sparse matrix X (p by q), maps it to a normal distribution.
+    To preserve sparsity, we return the output expressed as a sum:
+    A + zeromaps @ np.ones(q)^T
+    where A has the same sparsity pattern as X, and zeromaps is a p-vector
+    containing the value (per-row) that zero was mapped to by the transformation.
+
+    This enables us to operate on a sparse matrix A, and use zeromaps later for
+    rank-one updates of those operations.  This helps avoid the need to densify.
+    """
+    p, q = X.shape
+    A = X.copy()
+
+    zeromaps = np.zeros(q)
+    for i in range(q):
+        Y = A[:, [i]].toarray()
+        cur = stats.rankdata(Y, axis=0, method=method)
+        cur = stats.norm.ppf(cur / (p+1))
+        if (Y == 0).any():
+            if method == "min" or method == "dense":
+                rank = (Y < 0).sum() + 1
+            elif method == "max":
+                rank = p - (Y > 0).sum()
+            elif method == "average":
+                rank_min = (Y < 0).sum() + 1
+                rank_max = p - (Y > 0).sum()
+                rank = (rank_min + rank_max) / 2
+            elif method == "ordinal":
+                # This is not possible to implement as we need all zeros
+                # to be mapped to the same value
+                raise NotImplementedError("Ordinal method not possible to implement")
+            else:
+                raise ValueError(f"Unknown method: {method}")
+            zeromaps[i] = stats.norm.ppf(rank / (p+1))
+
+        cur -= zeromaps[i]
+
+        # Looks complicated, but is needed because:
+        # X[[i], :] is not a view, and hence X[[i], :][Y != 0]
+        # is not assignable to!  (It sets values in a copy that gets
+        # immediately deleted)
+        A[np.ix_((Y != 0).flatten(), [i])] = cur[Y != 0]
+
+    return A, zeromaps

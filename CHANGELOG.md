@@ -1,10 +1,14 @@
 # Changelog
 
-## v0.3.2 (IN PROGRESS)
+## v0.4.0 (IN PROGRESS)
+
+### API Changes
+- `GmGM` now defaults to `centering_method=None`.
 
 ### Improvements
 - Added `overall-col-weighted` thresholding method
-- Rewrote `extras.regularizers.py`, adding proximal operator of spectrally-restricted L1
+- Rewrote `extras.regularizers.py`
+- **Nonparanormal skeptic now preserves sparsity in the unimodal case.**
 
 ## v0.3.1 (23/01/2024)
 
