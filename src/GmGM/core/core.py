@@ -13,6 +13,7 @@ import numpy as np
 import dask.array as da
 import scipy.sparse as sparse
 import scipy.stats as stats
+import scipy.special as special
 
 import warnings
 
@@ -71,7 +72,7 @@ def direct_left_eigenvectors(
                 full_matricized = full_matricized / (full_matricized.shape[0]+1)
 
                 # Convert uniform distribution to normal distribution
-                full_matricized = full_matricized.map_blocks(stats.norm.ppf)
+                full_matricized = full_matricized.map_blocks(special.ndtri)
 
             elif nonparanormal_evec_backend == "XPCA":
                 raise NotImplementedError("XPCA backend not yet implemented")
@@ -635,7 +636,7 @@ def _sparse_normal_map(
     for i in range(q):
         Y = A[:, [i]].toarray()
         cur = stats.rankdata(Y, axis=0, method=method)
-        cur = stats.norm.ppf(cur / (p+1))
+        cur = special.ndtri(cur / (p+1))
         if (Y == 0).any():
             if method == "min" or method == "dense":
                 rank = (Y < 0).sum() + 1
@@ -651,7 +652,7 @@ def _sparse_normal_map(
                 raise NotImplementedError("Ordinal method not possible to implement")
             else:
                 raise ValueError(f"Unknown method: {method}")
-            zeromaps[i] = stats.norm.ppf(rank / (p+1))
+            zeromaps[i] = special.ndtri(rank / (p+1))
 
         cur -= zeromaps[i]
 

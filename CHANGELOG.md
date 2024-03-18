@@ -10,6 +10,7 @@
 - Added `overall-col-weighted` thresholding method
 - Rewrote `extras.regularizers.py`
 - **Nonparanormal skeptic now preserves sparsity in the unimodal case.**
+- Now uses `scipy.special.ndtri` rather than `scipy.stats.norm.ppf` as the former is much much faster.
 
 ## v0.3.1 (23/01/2024)
 
