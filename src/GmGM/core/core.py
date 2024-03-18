@@ -630,21 +630,34 @@ def _sparse_normal_map(
     rank-one updates of those operations.  This helps avoid the need to densify.
     """
     p, q = X.shape
-    A = X.copy()
+
+    # Have to copy anyways, so we might as well convert
+    # to csc format for efficient column slicing
+    # Note that once you start running out of memory,
+    # this line will become the bottleneck
+    A = X.tocsc(copy=True)
 
     zeromaps = np.zeros(q)
     for i in range(q):
-        Y = A[:, [i]].toarray()
-        cur = stats.rankdata(Y, axis=0, method=method)
-        cur = special.ndtri(cur / (p+1))
-        if (Y == 0).any():
+
+        # Gets ith column, just like Y = A[:, i]
+        # but this is a particularly efficient way of doing this
+        Y_nonzero = A.data[A.indptr[i]:A.indptr[i+1]]
+
+        # Get number of zeros in Y
+        num_zeros = p - Y_nonzero.size
+
+        cur = stats.rankdata(Y_nonzero, axis=0, method=method)
+        
+        if num_zeros > 0:
             if method == "min" or method == "dense":
-                rank = (Y < 0).sum() + 1
+                rank = (Y_nonzero < 0).sum() + 1
             elif method == "max":
-                rank = p - (Y > 0).sum()
+                rank = p - (Y_nonzero > 0).sum()
             elif method == "average":
-                rank_min = (Y < 0).sum() + 1
-                rank_max = p - (Y > 0).sum()
+                Y_subzero = (Y_nonzero < 0).sum()
+                rank_min = Y_subzero + 1
+                rank_max = (p - Y_subzero - Y_nonzero.size)
                 rank = (rank_min + rank_max) / 2
             elif method == "ordinal":
                 # This is not possible to implement as we need all zeros
@@ -652,14 +665,23 @@ def _sparse_normal_map(
                 raise NotImplementedError("Ordinal method not possible to implement")
             else:
                 raise ValueError(f"Unknown method: {method}")
+            
+            # special.ndtri == stats.norm.ppf, but ndtri is much faster
+            # as it contains none of norm's boilerplate
             zeromaps[i] = special.ndtri(rank / (p+1))
 
+            # For every cur that is a larger rank than 0's rank, add the number of nonzeros to the rank
+            cur[cur > rank] += num_zeros
+
+        # Now map to normal distribution
+        cur = special.ndtri(cur / (p+1))
+
+        # And subtract the mapped zero
         cur -= zeromaps[i]
 
-        # Looks complicated, but is needed because:
-        # X[[i], :] is not a view, and hence X[[i], :][Y != 0]
-        # is not assignable to!  (It sets values in a copy that gets
-        # immediately deleted)
-        A[np.ix_((Y != 0).flatten(), [i])] = cur[Y != 0]
+        # This is how to get indices in ith column for csc
+        # Looks complicated, but is same as A[:, i].data = cur
+        # but faster
+        A.data[A.indptr[i]:A.indptr[i+1]] = cur
 
     return A, zeromaps
