@@ -4,6 +4,7 @@
 
 ### API Changes
 - `GmGM` now defaults to `centering_method=None`.
+- Added argument `GmGM(_assume_sparse=False)`, which when True forces `GmGM` to treat the input as a sparse matrix.  This is for use when the input is sparse but cannot be detected by `scipy.sparse.issparse()`, such as `AnnData`'s experimental sparse backed formats.
 
 ### Improvements
 - Added `overall-col-weighted` thresholding method

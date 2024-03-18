@@ -18,8 +18,11 @@ from .core.numbafied import extract_d_values
 # Optional dependencies
 try:
     from anndata import AnnData
+    from anndata.experimental import CSRDataset, CSCDataset
 except ImportError:
     AnnData = None
+    CSRDataset = None
+    CSCDataset = None
 try:
     from mudata import MuData
 except ImportError:
@@ -318,6 +321,11 @@ class Dataset:
         if AnnData is None:
             raise ImportError("Please install AnnData to use this method.")
         matrix = data.X
+        if isinstance(matrix, CSRDataset) or isinstance(matrix, CSCDataset):
+            warnings.warn(
+                "AnnData is relying on the experimental API.  Things may not work as"
+                + " expected.  Consider saving as a Dataset."
+            )
         if hasattr(matrix, "flags") and readonly:
             matrix.flags.writeable = False
         if use_highly_variable and 'highly_variable' in data.var.keys():

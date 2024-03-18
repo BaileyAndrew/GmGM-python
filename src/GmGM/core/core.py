@@ -97,7 +97,8 @@ def nonparanormal_left_eigenvectors(
     X: Dataset,
     n_comps: Optional[int] = None,
     nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
-    random_state: Optional[int] = None
+    random_state: Optional[int] = None,
+    verbose: bool = False
 ) -> Dataset:
     """
     Similar to `direct_left_eigenvectors` but does not densify the dataset
@@ -134,11 +135,17 @@ def nonparanormal_left_eigenvectors(
                     "Currently only implemented for unimodal datasets,"
                     + " as scipy.sparse does not support higher-dimensional arrays."
                 )
+            
+            if verbose:
+                print(f"\t\tComputing sparse normal map for {axis=}...")
 
             if i == 0:
                 A, b = _sparse_normal_map(dataset)
             elif i == 1:
                 A, b = _sparse_normal_map(dataset.T)
+
+            if verbose:
+                print("\t\t...Done computing sparse normal map")
 
             # Compute the SVD of A
             V_1, Lambda, V_2T = sparse.linalg.svds(

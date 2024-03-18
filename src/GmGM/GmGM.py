@@ -67,9 +67,13 @@ def GmGM(
     key_map: Optional[dict[Axis, Axis]] = None,
     readonly: bool = True,
     prior: Optional[dict[Axis, Prior]] = None,
+    # Parameters to force a specific compute path
+    _assume_sparse: bool = False,
 ) -> Dataset | AnnData | MuData:
     """
     Performs GmGM on the given dataset.
+
+    `_force_sparse`: If true, will force algorithm to treat the dataset as sparse
     """
     # Convert AnnData/MuData to Dataset (if relevant)
     is_anndata: bool = AnnData is not None and isinstance(dataset, AnnData)
@@ -137,7 +141,7 @@ def GmGM(
     # Check properties of dataset to find the best way to calculate eigenvectors
     unimodal: bool = len(_dataset.dataset) == 1
     sparseness = [
-        sparse.issparse(_dataset.dataset[key])
+        _assume_sparse or sparse.issparse(_dataset.dataset[key])
         for key in _dataset.dataset.keys()
     ]
     allsparse = all(sparseness)
@@ -149,8 +153,9 @@ def GmGM(
             + " and will likely lead to densification or slower performance (or both)."
         )
 
+    # Assume that anything without a `ndim` attribute is a matrix
     matrix_variate: bool = all([
-        _dataset.dataset[key].ndim == 2
+        not hasattr(_dataset.dataset[key], "ndim") or _dataset.dataset[key].ndim == 2
         for key in _dataset.dataset.keys()
     ])
 
@@ -179,6 +184,7 @@ def GmGM(
             n_comps=n_comps,
             nonparanormal_evec_backend=nonparanormal_evec_backend,
             random_state=random_state,
+            verbose=verbose
         )
     # If dataset is multi-modal or tensor-variate, we can find the left
     # eigenvectors of the concatenation of the matricization of each modality
