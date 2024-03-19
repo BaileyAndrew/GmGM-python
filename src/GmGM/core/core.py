@@ -29,6 +29,8 @@ def direct_left_eigenvectors(
     use_nonparanormal_skeptic: bool = False,
     nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
     random_state: Optional[int] = None,
+    calculate_explained_variance: bool = False,
+    verbose: bool = False
 ) -> Dataset:
     """
     No assumptions on `X` but works best when `n_comps` is specified
@@ -91,6 +93,10 @@ def direct_left_eigenvectors(
         V_1 = V_1.compute()
         X.evecs[axis] = V_1
         X.es[axis] = Lambda
+
+        if verbose and calculate_explained_variance:
+            explained_variance = X.es[axis].sum() / (full_matricized**2).sum()
+            print(f"\t\tExplained variance for {axis=}: {explained_variance:.4%}")
 
     return X
 
@@ -182,7 +188,9 @@ def direct_svd(
     n_comps: Optional[int] = None,
     n_power_iter: int = 4,
     n_oversamples: int = 100,
-    random_state: Optional[int] = None
+    random_state: Optional[int] = None,
+    calculate_explained_variance: bool = False,
+    verbose: bool = False
 ) -> Dataset:
     """
     Assumes `X` is a single matrix
@@ -241,6 +249,13 @@ def direct_svd(
     X.evecs[second_axis] = V_2
     X.es[first_axis] = Lambda
     X.es[second_axis] = Lambda
+
+    if verbose and calculate_explained_variance:
+        explained_variance = X.es[first_axis].sum() / (dataset**2).sum()
+        print(f"\t\tExplained variance for {first_axis=}: {explained_variance:.4%}")
+        explained_variance = X.es[second_axis].sum() / (dataset**2).sum()
+        print(f"\t\tExplained variance for {second_axis=}: {explained_variance:.4%}")
+        print(f"\t\t\t(These values should be approximately equal)")
     return X
 
 def calculate_eigenvectors(

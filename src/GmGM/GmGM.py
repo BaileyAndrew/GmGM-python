@@ -179,6 +179,8 @@ def GmGM(
             _dataset,
             n_comps=n_comps,
             random_state=random_state,
+            calculate_explained_variance=calculate_explained_variance,
+            verbose=verbose
         )
     # If dataset is a single matrix, but we want to use the nonparanormal skeptic,
     # we can do it similarly to direct_left_eigenvectors, using a rank-one update trick.
@@ -194,8 +196,8 @@ def GmGM(
             n_comps=n_comps,
             nonparanormal_evec_backend=nonparanormal_evec_backend,
             random_state=random_state,
+            calculate_explained_variance=calculate_explained_variance,
             verbose=verbose,
-            calculate_explained_variance=calculate_explained_variance
         )
     # If dataset is multi-modal or tensor-variate, we can find the left
     # eigenvectors of the concatenation of the matricization of each modality
@@ -209,6 +211,8 @@ def GmGM(
             use_nonparanormal_skeptic=use_nonparanormal_skeptic,
             nonparanormal_evec_backend=nonparanormal_evec_backend,
             random_state=random_state,
+            calculate_explained_variance=calculate_explained_variance,
+            verbose=verbose
         )
     # If `n_comps` is not specified, we do it the old way, which is
     # an O(n^2) memory operation!
@@ -233,6 +237,9 @@ def GmGM(
             random_state=random_state,
             verbose=verbose
         )
+
+        if verbose and calculate_explained_variance:
+            print(f"100% explained variance, since `n_comps` was not specified")
 
     # Calculate eigenvalues
     if verbose:
