@@ -58,7 +58,12 @@ def GmGM(
     always_regularize: bool = False,
     check_overstep_each_iter: bool = False,
     # `recompose_sparse_positions` parameters
-    threshold_method: Literal["overall", "rowwise", "rowwise-col-weighted"] = "rowwise-col-weighted",
+    threshold_method: Literal[
+        "overall",
+        "overall-col-weighted",
+        "rowwise",
+        "rowwise-col-weighted"
+    ] = "rowwise-col-weighted",
     dont_recompose: Optional[set[Axis]] = None,
     # from_AnnData/MuData parameters
     use_highly_variable: bool = False,
