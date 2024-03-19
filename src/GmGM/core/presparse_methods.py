@@ -11,7 +11,7 @@ preserving sparsity.
 
 from __future__ import annotations
 from typing import Literal, Optional
-from numbers import Real
+from numbers import Real, Integral
 import warnings
 
 from ..typing import DataTensor
@@ -169,6 +169,24 @@ def sparse_grammify(
 
     return X
 
+def _floatify(
+        to_keep: float | int,
+        threshold_method: Literal[
+            "overall",
+            "overall-col-weighted",
+            "rowwise",
+            "rowwise-col-weighted"
+        ],
+        axis_size: int
+    ) -> float | int:
+    """
+    If overall/overall-col-weighted, converts an integral to_keep to float
+    """
+    if isinstance(to_keep, Integral):
+        if threshold_method in {"overall", "overall-col-weighted"}:
+            return to_keep / axis_size
+    return to_keep
+
 def recompose_sparse_precisions(
     X: Dataset,
     to_keep: float | int | dict[Axis, float | int],
@@ -194,6 +212,16 @@ def recompose_sparse_precisions(
             axis: to_keep
             for axis in X.all_axes
         }
+
+    # Convert ints to floats if necessary
+    to_keep = {
+        axis: _floatify(
+            to_keep[axis],
+            threshold_method,
+            X.axis_sizes[axis]
+        )
+        for axis in X.all_axes
+    }
 
     # Calculate the precision matrices
     X.precision_matrices: dict[Axis, np.ndarray] = {}
