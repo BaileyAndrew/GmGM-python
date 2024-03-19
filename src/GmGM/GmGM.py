@@ -65,7 +65,7 @@ def GmGM(
         "rowwise",
         "rowwise-col-weighted"
     ] = "rowwise-col-weighted",
-    dont_recompose: Optional[set[Axis]] = None,
+    dont_recompose: Optional[set[Axis]] | bool = None,
     # from_AnnData/MuData parameters
     use_highly_variable: bool = False,
     key_added: str = "gmgm",
@@ -113,6 +113,10 @@ def GmGM(
     # First expand if it's a single value
     if isinstance(to_keep, (int, float)):
         to_keep = {axis: to_keep for axis in _dataset.all_axes}
+
+    # If `dont_recompose` is a bool and true, then set it to all axes
+    if dont_recompose is True:
+        dont_recompose = _dataset.all_axes.copy()
 
     # Second expand to also contain keys of `key_map`
     if key_map is not None:
