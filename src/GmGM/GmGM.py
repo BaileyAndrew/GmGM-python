@@ -46,6 +46,7 @@ def GmGM(
     nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
     # `calculate_eigenvectors` parameters
     n_comps: Optional[int] = None,
+    calculate_explained_variance: bool = True,
     # `calculate_eigenvalues` parameters
     max_small_steps: int = 5,
     max_line_search_steps: int = 20,
@@ -189,7 +190,8 @@ def GmGM(
             n_comps=n_comps,
             nonparanormal_evec_backend=nonparanormal_evec_backend,
             random_state=random_state,
-            verbose=verbose
+            verbose=verbose,
+            calculate_explained_variance=calculate_explained_variance
         )
     # If dataset is multi-modal or tensor-variate, we can find the left
     # eigenvectors of the concatenation of the matricization of each modality

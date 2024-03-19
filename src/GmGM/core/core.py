@@ -28,7 +28,7 @@ def direct_left_eigenvectors(
     n_oversamples: int = 100,
     use_nonparanormal_skeptic: bool = False,
     nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
-    random_state: Optional[int] = None
+    random_state: Optional[int] = None,
 ) -> Dataset:
     """
     No assumptions on `X` but works best when `n_comps` is specified
@@ -99,7 +99,8 @@ def nonparanormal_left_eigenvectors(
     n_comps: Optional[int] = None,
     nonparanormal_evec_backend: Optional[Literal["COCA", "XPCA"]] = None,
     random_state: Optional[int] = None,
-    verbose: bool = False
+    verbose: bool = False,
+    calculate_explained_variance: bool = False
 ) -> Dataset:
     """
     Similar to `direct_left_eigenvectors` but does not densify the dataset
@@ -141,9 +142,15 @@ def nonparanormal_left_eigenvectors(
                 print(f"\t\tComputing sparse normal map for {axis=}...")
 
             if i == 0:
-                A, b = _sparse_normal_map(dataset)
+                A, b, total_variance = _sparse_normal_map(
+                    dataset,
+                    calculate_explained_variance=calculate_explained_variance
+                )
             elif i == 1:
-                A, b = _sparse_normal_map(dataset.T)
+                A, b, total_variance = _sparse_normal_map(
+                    dataset.T,
+                    calculate_explained_variance=calculate_explained_variance
+                )
 
             if verbose:
                 print("\t\t...Done computing sparse normal map")
@@ -161,6 +168,10 @@ def nonparanormal_left_eigenvectors(
 
             X.evecs[axis] = V_1
             X.es[axis] = Lambda ** 2
+
+            if verbose and calculate_explained_variance:
+                explained_variance = X.es[axis].sum() / total_variance
+                print(f"\t\tExplained variance for {axis=}: {explained_variance:.4%}")
 
     return X
         
@@ -617,8 +628,9 @@ def _svd_rank_one_update(U, S, V, a):
 
 def _sparse_normal_map(
     X: sparse.sparray,
-    method: Literal["min", "average", "max"] = "average"
-) -> tuple[sparse.sparray, np.ndarray]:
+    method: Literal["min", "average", "max"] = "average",
+    calculate_explained_variance: bool = False
+) -> tuple[sparse.sparray, np.ndarray, float]:
     """
     Given a sparse matrix X (p by q), maps it to a normal distribution.
     To preserve sparsity, we return the output expressed as a sum:
@@ -628,8 +640,12 @@ def _sparse_normal_map(
 
     This enables us to operate on a sparse matrix A, and use zeromaps later for
     rank-one updates of those operations.  This helps avoid the need to densify.
+
+    Returns A, zeromaps, total_variance
+    (if calculate_explained_variance is False, total_variance = 0)
     """
     p, q = X.shape
+    total_variance = 0
 
     # Have to copy anyways, so we might as well convert
     # to csc format for efficient column slicing
@@ -676,6 +692,10 @@ def _sparse_normal_map(
         # Now map to normal distribution
         cur = special.ndtri(cur / (p+1))
 
+        if calculate_explained_variance:
+            total_variance += (cur**2).sum()
+            total_variance += (zeromaps[i]**2) * num_zeros
+
         # And subtract the mapped zero
         cur -= zeromaps[i]
 
@@ -684,4 +704,4 @@ def _sparse_normal_map(
         # but faster
         A.data[A.indptr[i]:A.indptr[i+1]] = cur
 
-    return A, zeromaps
+    return A, zeromaps, total_variance
