@@ -76,6 +76,7 @@ class Dataset:
         self.evecs = {}
         self.evals = {}
         self.precision_matrices = {}
+        self.explained_variance = {}
 
         # Calculate helper attributes
         self.recompute_helpers()

@@ -95,7 +95,9 @@ def direct_left_eigenvectors(
         X.es[axis] = Lambda
 
         if verbose and calculate_explained_variance:
-            explained_variance = X.es[axis].sum() / (full_matricized**2).sum()
+            total_variance = (full_matricized**2).sum()
+            explained_variance = X.es[axis].sum() / total_variance
+            X.total_variance[axis] = total_variance
             print(f"\t\tExplained variance for {axis=}: {explained_variance:.4%}")
 
     return X
@@ -177,6 +179,7 @@ def nonparanormal_left_eigenvectors(
 
             if verbose and calculate_explained_variance:
                 explained_variance = X.es[axis].sum() / total_variance
+                X.total_variance[axis] = total_variance
                 print(f"\t\tExplained variance for {axis=}: {explained_variance:.4%}")
 
     return X
@@ -251,11 +254,14 @@ def direct_svd(
     X.es[second_axis] = Lambda
 
     if verbose and calculate_explained_variance:
-        explained_variance = X.es[first_axis].sum() / (dataset**2).sum()
+        total_variance = (dataset**2).sum()
+        explained_variance = X.es[first_axis].sum() / total_variance
         print(f"\t\tExplained variance for {first_axis=}: {explained_variance:.4%}")
-        explained_variance = X.es[second_axis].sum() / (dataset**2).sum()
+        explained_variance = X.es[second_axis].sum() / total_variance
         print(f"\t\tExplained variance for {second_axis=}: {explained_variance:.4%}")
         print(f"\t\t\t(These values should be approximately equal)")
+        X.total_variance[first_axis] = total_variance
+        X.total_variance[second_axis] = total_variance
     return X
 
 def calculate_eigenvectors(

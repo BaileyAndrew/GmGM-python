@@ -20,6 +20,7 @@ import scipy.sparse as sparse
 import scipy.stats as stats
 import numpy as np
 import numba as nb
+import dask.array as da
 
 # ------------------------------------ #
 #            Helper Methods            #
@@ -341,7 +342,6 @@ def _estimate_sparse_gram(
         # Nothing to do!
         return result
 
-
     for i in range(0, features + batch_size, batch_size):
         if i >= features:
             break
@@ -601,8 +601,9 @@ def _estimate_sparse_gram_singleton_percentage(
         # We only need to keep elements above threshold
         to_keep_idxs = res_batch > threshold
         result.data = res_batch[to_keep_idxs]
-        result.row = to_keep_idxs + i
-        result.col = np.arange(i, i + increase)[to_keep_idxs]
+        wheres = np.where(to_keep_idxs)
+        result.row = wheres[0] + i
+        result.col = wheres[1] + i
 
     return result
 
