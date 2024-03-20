@@ -175,7 +175,8 @@ def _floatify(
             "overall",
             "overall-col-weighted",
             "rowwise",
-            "rowwise-col-weighted"
+            "rowwise-col-weighted",
+            "singleton-percentage",
         ],
         axis_size: int
     ) -> float | int:
@@ -185,6 +186,8 @@ def _floatify(
     if isinstance(to_keep, Integral):
         if threshold_method in {"overall", "overall-col-weighted"}:
             return to_keep / axis_size
+        if threshold_method == "singleton-percentage":
+            raise ValueError("Singleton percentage requires a float")
     return to_keep
 
 def recompose_sparse_precisions(
@@ -194,7 +197,8 @@ def recompose_sparse_precisions(
         "overall",
         "overall-col-weighted",
         "rowwise",
-        "rowwise-col-weighted"
+        "rowwise-col-weighted",
+        "singleton-percentage",
     ] = "overall",
     dont_recompose: Optional[set[Axis]] = None,
     batch_size: Optional[int] = None,
@@ -270,6 +274,13 @@ def recompose_sparse_precisions(
             )
         elif threshold_method == "rowwise-col-weighted":
             X.precision_matrices[axis] = _estimate_sparse_gram_per_row_col_weighted(
+                half,
+                to_keep[axis],
+                batch_size,
+                verbose=verbose
+            )
+        elif threshold_method == "singleton-percentage":
+            X.precision_matrices[axis] = _estimate_sparse_gram_singleton_percentage(
                 half,
                 to_keep[axis],
                 batch_size,
@@ -421,6 +432,167 @@ def _estimate_sparse_gram(
     result.data = result.data[num_to_keep:]
     result.row = result.row[num_to_keep:]
     result.col = result.col[num_to_keep:]
+
+    return result
+
+def _estimate_sparse_gram_singleton_percentage(
+    matrix: DataTensor,
+    singleton_percentage: float,
+    batch_size: Optional[int] = None,
+    divide_by_diagonal: bool = False,
+    verbose: bool = False
+) -> sparse.sparray:
+    """
+    Computes matrix @ matrix.T in a sparse manner.
+
+    It first works out what threshold needs to be applied such that
+    at most `singleton_percentage` rows have no edges
+    """
+
+    if batch_size is None:
+        batch_size = min(matrix.shape[0], 1000)
+
+    assert singleton_percentage >= 0 and singleton_percentage <= 1, \
+        "`singleton_percentage` must be between 0 and 1"
+
+    features, _ = matrix.shape
+
+    # First loop through and find the max value per row
+    max_per_row = np.zeros(features, dtype=np.float32)
+    for i in range(0, features + batch_size, batch_size):
+        if i >= features:
+            break
+        # Compute the entire row at once to save time
+        # Assuming we have space that is linear in axis length
+        # (a reasonable assumption)
+        # then this is okay to do!
+        increase: int = min(batch_size, features - i)
+        res_batch: np.ndarray
+        if isinstance(matrix, sparse.sparray):
+            # Warning: this implementation becomes quite slow
+            # when the matrices are very large.  Better to,
+            # if possible, work with dense matrices.
+            rhs = matrix[i:i+increase].toarray().T
+            res_batch = np.abs(matrix[i:] @ rhs)
+        else:
+            res_batch = np.abs(matrix[i:] @ matrix[i:i+increase].T)
+
+        # Remove the diagonal so it does not affect thresholding!
+        diags = np.diagonal(res_batch).copy()
+        if divide_by_diagonal:
+            diags[diags == 0] = 1
+            np.fill_diagonal(res_batch, 0)
+        else:
+            diags[:] = 1
+
+        # Remove everything above diagonal so it does not affect thresholding!
+        # (due to symmetry)
+        res_batch[np.triu_indices(increase)] = 0
+
+        # Find the maximum per row
+        max_per_row[i:] = np.maximum(max_per_row[i:], res_batch.max(axis=1))
+
+    # Sort max_per_row and find element that is at `singleton_percentage`
+    max_per_row = np.sort(max_per_row)
+    threshold = max_per_row[int((1 - singleton_percentage) * features)]
+
+    # Loop again to find out how many are above threshold
+    # Looping twice is not time-efficient, but it is memory-efficient
+    # since it allows us to know exactly how much memory to allocate.
+    # And for large problems I think it is the memory allocation that is
+    # the most severe time sink, so overall it becomes time-efficient...
+    num_to_keep = 0
+    for i in range(0, features + batch_size, batch_size):
+        if i >= features:
+            break
+        # Compute the entire row at once to save time
+        # Assuming we have space that is linear in axis length
+        # (a reasonable assumption)
+        # then this is okay to do!
+        increase: int = min(batch_size, features - i)
+        res_batch: np.ndarray
+        if isinstance(matrix, sparse.sparray):
+            # Warning: this implementation becomes quite slow
+            # when the matrices are very large.  Better to,
+            # if possible, work with dense matrices.
+            rhs = matrix[i:i+increase].toarray().T
+            res_batch = np.abs(matrix[i:] @ rhs)
+        else:
+            res_batch = np.abs(matrix[i:] @ matrix[i:i+increase].T)
+
+        # Remove the diagonal so it does not affect thresholding!
+        diags = np.diagonal(res_batch).copy()
+        if divide_by_diagonal:
+            diags[diags == 0] = 1
+            np.fill_diagonal(res_batch, 0)
+        else:
+            diags[:] = 1
+
+        # Remove everything above diagonal so it does not affect thresholding!
+        # (due to symmetry)
+        res_batch[np.triu_indices(increase)] = 0
+
+        # How many are above threshold
+        num_to_keep += (res_batch > threshold).sum()
+
+    # Create a sparse array to store the result
+    # We are always gonna keep it so smallest kept value is at `num_to_keep`
+    # Note that this uses twice as much memory as we ultimately will need,
+    # because we want to zipper-sort the old data and new data in the end.
+    # If there is a vectorized way to zipper-sort, rather than concatenating them,
+    # then we can save this memory.  But idk how!
+    result = sparse.coo_array(
+        (
+            np.zeros(num_to_keep, dtype=np.float32),
+            (
+                np.zeros(num_to_keep, dtype=np.int32),
+                np.zeros(num_to_keep, dtype=np.int32)
+            )
+        ),
+        shape=(features, features),
+    )
+
+    if num_to_keep == 0:
+        # Nothing to do!
+        return result
+
+
+    # Loop through one last time and keep all edges above threshold
+    for i in range(0, features + batch_size, batch_size):
+        if i >= features:
+            break
+        # Compute the entire row at once to save time
+        # Assuming we have space that is linear in axis length
+        # (a reasonable assumption)
+        # then this is okay to do!
+        increase: int = min(batch_size, features - i)
+        res_batch: np.ndarray
+        if isinstance(matrix, sparse.sparray):
+            # Warning: this implementation becomes quite slow
+            # when the matrices are very large.  Better to,
+            # if possible, work with dense matrices.
+            rhs = matrix[i:i+increase].toarray().T
+            res_batch = np.abs(matrix[i:] @ rhs)
+        else:
+            res_batch = np.abs(matrix[i:] @ matrix[i:i+increase].T)
+
+        # Remove the diagonal so it does not affect thresholding!
+        diags = np.diagonal(res_batch).copy()
+        if divide_by_diagonal:
+            diags[diags == 0] = 1
+            np.fill_diagonal(res_batch, 0)
+        else:
+            diags[:] = 1
+
+        # Remove everything above diagonal so it does not affect thresholding!
+        # (due to symmetry)
+        res_batch[np.triu_indices(increase)] = 0
+
+        # We only need to keep elements above threshold
+        to_keep_idxs = res_batch > threshold
+        result.data = res_batch[to_keep_idxs]
+        result.row = to_keep_idxs + i
+        result.col = np.arange(i, i + increase)[to_keep_idxs]
 
     return result
 

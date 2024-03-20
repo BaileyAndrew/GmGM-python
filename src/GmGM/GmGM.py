@@ -63,8 +63,9 @@ def GmGM(
         "overall",
         "overall-col-weighted",
         "rowwise",
-        "rowwise-col-weighted"
-    ] = "rowwise-col-weighted",
+        "rowwise-col-weighted",
+        "singleton-percentage"
+    ] = "overall",
     dont_recompose: Optional[set[Axis]] | bool = None,
     # from_AnnData/MuData parameters
     use_highly_variable: bool = False,
