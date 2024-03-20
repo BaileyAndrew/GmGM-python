@@ -535,6 +535,16 @@ def _estimate_sparse_gram_singleton_percentage(
         # How many are above threshold
         num_to_keep += (res_batch > threshold).sum()
 
+    bytes_in_float32 = 4
+    arrays_in_coo = 3
+    total_bytes = num_to_keep * bytes_in_float32 * arrays_in_coo
+    if total_bytes > 1e9:
+        warnings.warn(
+            f"The output array will be over 1GB ({total_bytes/1e9:.2f} GB);"
+            + " consider reducing `singleton_percentage`."
+            + f"  It will contain {num_to_keep} elements."
+        )
+
     # Create a sparse array to store the result
     # We are always gonna keep it so smallest kept value is at `num_to_keep`
     # Note that this uses twice as much memory as we ultimately will need,
