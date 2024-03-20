@@ -14,7 +14,7 @@ from typing import Literal, Optional
 from numbers import Real, Integral
 import warnings
 
-from ..typing import DataTensor
+from ..typing import DataTensor, MaybeDict
 from ..dataset import Dataset, Axis
 import scipy.sparse as sparse
 import scipy.stats as stats
@@ -67,7 +67,7 @@ def k_largest_per_row(
 # ------------------------------------ #
 def sparse_grammify(
     X: Dataset,
-    to_keep: float | dict[Axis, float],
+    to_keep: MaybeDict[Axis, float],
     threshold_method: Literal["overall", "rowwise", "rowwise-col-weighted"] = "overall",
     gram_method: Literal["covariance", "nonparanormal skeptic"] = "covariance",
     batch_size: int = 100,
@@ -189,7 +189,7 @@ def _floatify(
 
 def recompose_sparse_precisions(
     X: Dataset,
-    to_keep: float | int | dict[Axis, float | int],
+    to_keep: MaybeDict[Axis, float | int],
     threshold_method: Literal[
         "overall",
         "overall-col-weighted",
