@@ -8,7 +8,7 @@
 - If `GmGM(threshold_method='overall', to_keep: MaybeDict[int])` or `GmGM(threshold_method='overall-col-weighted', to_keep: MaybeDict[int])`, no longer throws an error but rather converts `to_keep` to `to_keep / axis_size` and proceeds from there.
 - Added argument `GmGM(calculate_explained_variance=True)` which will print out the amount of variance explained per axis if coupled with `GmGM(verbose=True)`.
 - Changed default to `GmGM(threshold_method="overall")`.
-- Added new thresholding method `GmGM(threshold_method="singleton-percentage")`, which aims to keep a certain amount of edges such that there is a set amount of singletons left.
+- Added new thresholding method `GmGM(threshold_method="nonsingleton-percentage")`, which aims to keep a certain amount of edges such that there is a set amount of singletons left.
 
 ### Improvements
 - Added `overall-col-weighted` thresholding method

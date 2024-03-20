@@ -177,7 +177,7 @@ def _floatify(
             "overall-col-weighted",
             "rowwise",
             "rowwise-col-weighted",
-            "singleton-percentage",
+            "nonsingleton-percentage",
         ],
         axis_size: int
     ) -> float | int:
@@ -187,8 +187,8 @@ def _floatify(
     if isinstance(to_keep, Integral):
         if threshold_method in {"overall", "overall-col-weighted"}:
             return to_keep / axis_size
-        if threshold_method == "singleton-percentage":
-            raise ValueError("Singleton percentage requires a float")
+        if threshold_method == "nonsingleton-percentage":
+            raise ValueError("Nonsingleton percentage requires a float")
     return to_keep
 
 def recompose_sparse_precisions(
@@ -199,7 +199,7 @@ def recompose_sparse_precisions(
         "overall-col-weighted",
         "rowwise",
         "rowwise-col-weighted",
-        "singleton-percentage",
+        "nonsingleton-percentage",
     ] = "overall",
     dont_recompose: Optional[set[Axis]] = None,
     batch_size: Optional[int] = None,
@@ -280,8 +280,8 @@ def recompose_sparse_precisions(
                 batch_size,
                 verbose=verbose
             )
-        elif threshold_method == "singleton-percentage":
-            X.precision_matrices[axis] = _estimate_sparse_gram_singleton_percentage(
+        elif threshold_method == "nonsingleton-percentage":
+            X.precision_matrices[axis] = _estimate_sparse_gram_nonsingleton_percentage(
                 half,
                 to_keep[axis],
                 batch_size,
@@ -435,9 +435,9 @@ def _estimate_sparse_gram(
 
     return result
 
-def _estimate_sparse_gram_singleton_percentage(
+def _estimate_sparse_gram_nonsingleton_percentage(
     matrix: DataTensor,
-    singleton_percentage: float,
+    nonsingleton_percentage: float,
     batch_size: Optional[int] = None,
     divide_by_diagonal: bool = False,
     verbose: bool = False
@@ -446,14 +446,14 @@ def _estimate_sparse_gram_singleton_percentage(
     Computes matrix @ matrix.T in a sparse manner.
 
     It first works out what threshold needs to be applied such that
-    at most `singleton_percentage` rows have no edges
+    at most `nonsingleton_percentage` rows have no edges
     """
 
     if batch_size is None:
         batch_size = min(matrix.shape[0], 1000)
 
-    assert singleton_percentage >= 0 and singleton_percentage <= 1, \
-        "`singleton_percentage` must be between 0 and 1"
+    assert nonsingleton_percentage >= 0 and nonsingleton_percentage <= 1, \
+        "`nonsingleton_percentage` must be between 0 and 1"
 
     features, _ = matrix.shape
 
@@ -490,11 +490,13 @@ def _estimate_sparse_gram_singleton_percentage(
         res_batch[np.triu_indices(increase)] = 0
 
         # Find the maximum per row
-        max_per_row[i:] = np.maximum(max_per_row[i:], res_batch.max(axis=1))
+        max_per_row[i:] = np.maximum(max_per_row[i:], (res_batch / diags).max(axis=1))
 
-    # Sort max_per_row and find element that is at `singleton_percentage`
+    # Sort max_per_row and find element that is at `nonsingleton_percentage`
     max_per_row = np.sort(max_per_row)
-    threshold = max_per_row[int((1 - singleton_percentage) * features)]
+    print(max_per_row)
+    threshold = max_per_row[int((nonsingleton_percentage) * features)]
+    print(threshold)
 
     # Loop again to find out how many are above threshold
     # Looping twice is not time-efficient, but it is memory-efficient
@@ -541,7 +543,7 @@ def _estimate_sparse_gram_singleton_percentage(
     if total_bytes > 1e9:
         warnings.warn(
             f"The output array will be over 1GB ({total_bytes/1e9:.2f} GB);"
-            + " consider reducing `singleton_percentage`."
+            + " consider reducing `nonsingleton_percentage`."
             + f"  It will contain {num_to_keep} elements."
         )
 
@@ -599,7 +601,7 @@ def _estimate_sparse_gram_singleton_percentage(
         res_batch[np.triu_indices(increase)] = 0
 
         # We only need to keep elements above threshold
-        to_keep_idxs = res_batch > threshold
+        to_keep_idxs = (res_batch / diags) > threshold
         result.data = res_batch[to_keep_idxs]
         wheres = np.where(to_keep_idxs)
         result.row = wheres[0] + i
