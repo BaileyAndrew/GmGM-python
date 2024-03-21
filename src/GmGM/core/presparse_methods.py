@@ -188,7 +188,10 @@ def _floatify(
         if threshold_method in {"overall", "overall-col-weighted"}:
             return to_keep / axis_size
         if threshold_method == "nonsingleton-percentage":
-            raise ValueError("Nonsingleton percentage requires a float")
+            if to_keep > 1:
+                raise ValueError("Nonsingleton percentage requires a percentage!")
+            else:
+                to_keep = float(to_keep)
     return to_keep
 
 def recompose_sparse_precisions(
@@ -201,6 +204,7 @@ def recompose_sparse_precisions(
         "rowwise-col-weighted",
         "nonsingleton-percentage",
     ] = "overall",
+    min_edges: MaybeDict[int] = 0,
     dont_recompose: Optional[set[Axis]] = None,
     batch_size: Optional[int] = None,
     verbose: bool = False
@@ -215,6 +219,12 @@ def recompose_sparse_precisions(
     if isinstance(to_keep, Real):
         to_keep = {
             axis: to_keep
+            for axis in X.all_axes
+        }
+    
+    if isinstance(min_edges, Integral):
+        min_edges = {
+            axis: min_edges
             for axis in X.all_axes
         }
 
@@ -289,13 +299,37 @@ def recompose_sparse_precisions(
             )
         else:
             raise ValueError(f"{threshold_method} is not a valid thresholding method")
-        
+
+        if min_edges[axis] > 0:
+            if threshold_method in {"overall", "nonsingleton-percentage"}:
+                # Just keep the largest edge per row
+                add = _estimate_sparse_gram_per_row(
+                    half,
+                    min_edges[axis],
+                    batch_size,
+                    verbose=verbose
+                )
+                add = (add + add.T) / 2
+
+                X.precision_matrices[axis] = add.maximum(X.precision_matrices[axis])
+
+            elif threshold_method in {"overall-col-weighted"}:
+                # Just keep the largest edge per row after column-weighting
+                X.precision_matrices[axis] += _estimate_sparse_gram_per_row_col_weighted(
+                    half,
+                    min_edges[axis],
+                    batch_size,
+                    verbose=verbose
+                )
+            elif threshold_method in {"rowwise", "rowwise-col-weighted"}:
+                raise ValueError("Cannot apply min_edges to rowwise thresholding")
+            
         # Symmetricize precision matrix
         X.precision_matrices[axis] = (
             X.precision_matrices[axis]
             + X.precision_matrices[axis].T
         ) / 2
-        
+
     return X
 
 # ------------------------------------ #
@@ -490,13 +524,13 @@ def _estimate_sparse_gram_nonsingleton_percentage(
         res_batch[np.triu_indices(increase)] = 0
 
         # Find the maximum per row
+        # if (res_batch == 0).all(axis=1).any():
+        #     print("Warning: found a row with no edges!")
         max_per_row[i:] = np.maximum(max_per_row[i:], (res_batch / diags).max(axis=1))
 
     # Sort max_per_row and find element that is at `nonsingleton_percentage`
     max_per_row = np.sort(max_per_row)
-    print(max_per_row)
-    threshold = max_per_row[int((nonsingleton_percentage) * features)]
-    print(threshold)
+    threshold = max_per_row[min(int((1 - nonsingleton_percentage) * features), max_per_row.shape[0] - 1)]
 
     # Loop again to find out how many are above threshold
     # Looping twice is not time-efficient, but it is memory-efficient
@@ -535,7 +569,7 @@ def _estimate_sparse_gram_nonsingleton_percentage(
         res_batch[np.triu_indices(increase)] = 0
 
         # How many are above threshold
-        num_to_keep += (res_batch > threshold).sum()
+        num_to_keep += ((res_batch / diags) > threshold).sum()
 
     bytes_in_float32 = 4
     arrays_in_coo = 3
@@ -548,11 +582,6 @@ def _estimate_sparse_gram_nonsingleton_percentage(
         )
 
     # Create a sparse array to store the result
-    # We are always gonna keep it so smallest kept value is at `num_to_keep`
-    # Note that this uses twice as much memory as we ultimately will need,
-    # because we want to zipper-sort the old data and new data in the end.
-    # If there is a vectorized way to zipper-sort, rather than concatenating them,
-    # then we can save this memory.  But idk how!
     result = sparse.coo_array(
         (
             np.zeros(num_to_keep, dtype=np.float32),
@@ -570,6 +599,7 @@ def _estimate_sparse_gram_nonsingleton_percentage(
 
 
     # Loop through one last time and keep all edges above threshold
+    pointer = 0
     for i in range(0, features + batch_size, batch_size):
         if i >= features:
             break
@@ -602,10 +632,12 @@ def _estimate_sparse_gram_nonsingleton_percentage(
 
         # We only need to keep elements above threshold
         to_keep_idxs = (res_batch / diags) > threshold
-        result.data = res_batch[to_keep_idxs]
+        to_add = res_batch[to_keep_idxs]
+        result.data[pointer:pointer+to_add.shape[0]] = to_add
         wheres = np.where(to_keep_idxs)
-        result.row = wheres[0] + i
-        result.col = wheres[1] + i
+        result.row[pointer:pointer+to_add.shape[0]] = wheres[0] + i
+        result.col[pointer:pointer+to_add.shape[0]] = wheres[1] + i
+        pointer += to_add.shape[0]
 
     return result
 
@@ -860,9 +892,6 @@ def _estimate_sparse_gram_per_row(
             end = (i + 1 + b) * per_row_to_keep
             result.col[start:end] = i + b
 
-    # Remove upper triangle
-    result.data[result.row < result.col] = 0
-
     return result
 
 def _estimate_sparse_gram_per_row_col_weighted(
@@ -958,12 +987,6 @@ def _estimate_sparse_gram_per_row_col_weighted(
         ).T
         rows = largest_idxs.T.reshape(-1)
 
-        # print(res_batch.shape)
-        # print(per_row_to_keep)
-        # print((res_batch / col_weights)[largest_idxs])
-        # print((res_batch / col_weights).max(axis=0))
-        # print("---")
-
         # Add these to the data!
         start = i * per_row_to_keep
         end = (i + increase) * per_row_to_keep
@@ -978,13 +1001,6 @@ def _estimate_sparse_gram_per_row_col_weighted(
             start = (i + b) * per_row_to_keep
             end = (i + 1 + b) * per_row_to_keep
             result.col[start:end] = i + b
-
-    # Remove upper triangle
-    #result.data[result.row < result.col] = 0
-
-    # #print(result.data)
-    # print(result.row)
-    # print(result.col)
 
     return result
 

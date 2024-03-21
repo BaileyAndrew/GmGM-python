@@ -13,6 +13,7 @@ from .core.presparse_methods import recompose_sparse_precisions
 
 # Used for typing
 from typing import Optional, Literal
+from collections.abc import Iterable
 from .extras.prior import Prior
 from .typing import Axis, MaybeDict
 from .dataset import Dataset
@@ -59,13 +60,14 @@ def GmGM(
     always_regularize: bool = False,
     check_overstep_each_iter: bool = False,
     # `recompose_sparse_positions` parameters
-    threshold_method: Literal[
+    threshold_method: MaybeSet[Literal[
         "overall",
         "overall-col-weighted",
         "rowwise",
         "rowwise-col-weighted",
         "nonsingleton-percentage"
-    ] = "overall",
+    ]] = "overall",
+    min_edges: int = 0,
     dont_recompose: Optional[set[Axis]] | bool = None,
     # from_AnnData/MuData parameters
     use_highly_variable: bool = False,
@@ -112,7 +114,7 @@ def GmGM(
 
     # Expand `to_keep` if necessary
     # First expand if it's a single value
-    if isinstance(to_keep, (int, float)):
+    if not isinstance(threshold_method, Iterable):
         to_keep = {axis: to_keep for axis in _dataset.all_axes}
 
     # If `dont_recompose` is a bool and true, then set it to all axes
@@ -268,6 +270,7 @@ def GmGM(
             _dataset,
             to_keep=to_keep,
             threshold_method=threshold_method,
+            min_edges=min_edges,
             batch_size=batch_size,
             dont_recompose=dont_recompose
         )

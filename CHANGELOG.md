@@ -9,9 +9,10 @@
 - Added argument `GmGM(calculate_explained_variance=True)` which will print out the amount of variance explained per axis if coupled with `GmGM(verbose=True)`.
 - Changed default to `GmGM(threshold_method="overall")`.
 - Added new thresholding method `GmGM(threshold_method="nonsingleton-percentage")`, which aims to keep a certain amount of edges such that there is a set amount of singletons left.
+- Added `GmGM(min_edges=0)` to control the minimum number of edges per vertex
 
 ### Improvements
-- Added `overall-col-weighted` thresholding method
+- Added `overall-col-weighted` and `nonsingleton-percentage` thresholding methods
 - Rewrote `extras.regularizers.py`
 - **Nonparanormal skeptic now preserves sparsity in the unimodal case.**
 - Now uses `scipy.special.ndtri` rather than `scipy.stats.norm.ppf` as the former is much much faster.
