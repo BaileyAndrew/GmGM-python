@@ -1,6 +1,10 @@
 # Changelog
 
-## v0.4.0 (IN PROGRESS)
+## v0.4.1 (IN PROGRESS)
+
+TODO: THIS
+
+## v0.4.0 (22/03/2024)
 
 ### API Changes
 - `GmGM` now defaults to `centering_method=None`.

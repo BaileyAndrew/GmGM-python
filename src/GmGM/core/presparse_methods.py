@@ -146,7 +146,7 @@ def sparse_grammify(
                     raise NotImplementedError("Nonparanormal Skeptic only supports overall thresholding")
             else:
                 raise ValueError(
-                    f"Unknown method {self.gram_method}"
+                    f"Unknown method {gram_method}"
                     + "\nPlease choose either 'covariance' or 'nonparanormal skeptic'"
                 )
             new_samples = X.full_sizes[modality] // X.axis_sizes[axis]
@@ -204,7 +204,7 @@ def recompose_sparse_precisions(
         "rowwise-col-weighted",
         "nonsingleton-percentage",
     ] = "overall",
-    min_edges: MaybeDict[int] = 0,
+    min_edges: MaybeDict[Axis, int] = 0,
     dont_recompose: Optional[set[Axis]] = None,
     batch_size: Optional[int] = None,
     verbose: bool = False
