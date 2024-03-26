@@ -255,6 +255,8 @@ def direct_svd(
 
     if verbose and calculate_explained_variance:
         total_variance = (dataset**2).sum()
+        if isinstance(total_variance, da.Array):
+            total_variance = total_variance.compute()
         explained_variance = X.es[first_axis].sum() / total_variance
         print(f"\t\tExplained variance for {first_axis=}: {explained_variance:.4%}")
         explained_variance = X.es[second_axis].sum() / total_variance

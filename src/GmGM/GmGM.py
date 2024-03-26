@@ -120,14 +120,6 @@ def GmGM(
     if dont_recompose is True:
         dont_recompose = _dataset.all_axes.copy()
 
-    # Second expand to also contain keys of `key_map`
-    if key_map is not None:
-        for key, value in key_map.items():
-            if value in to_keep:
-                to_keep[key] = to_keep[value]
-            else:
-                warnings.warn(f"Key `{key}` in `key_map` not found in `to_keep`")
-
     # Center dataset
     if verbose:
         print("Centering...")

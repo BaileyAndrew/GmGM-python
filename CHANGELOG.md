@@ -5,6 +5,8 @@
 ### Fixes
 - BUG-001: `to_keep` now successfully auto-turned-into a dictionary [bug was introduced in previous version]
 - BUG-002: `direct_left_eigenvectors` with `calculate_explained_variance=True` no longer crashes [dask matrix needed to be `.compute()`ed.]
+- BUG-003: Passing `key_map` no longer issues faulty warnings
+- BUG-004: `direct_svd` with `calculated_explained_variance=True` no longer crashes
 
 
 ## v0.4.0 (22/03/2024)
