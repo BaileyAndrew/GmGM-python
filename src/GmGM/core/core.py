@@ -95,7 +95,7 @@ def direct_left_eigenvectors(
         X.es[axis] = Lambda
 
         if verbose and calculate_explained_variance:
-            total_variance = (full_matricized**2).sum()
+            total_variance = (full_matricized**2).sum().compute()
             explained_variance = X.es[axis].sum() / total_variance
             X.total_variance[axis] = total_variance
             print(f"\t\tExplained variance for {axis=}: {explained_variance:.4%}")
