@@ -118,6 +118,13 @@ def GmGM(
     if isinstance(to_keep, Real):
         to_keep = {axis: to_keep for axis in _dataset.all_axes}
 
+    if key_map is not None:
+        for key, value in key_map.items():
+            if key in to_keep.keys():
+                to_keep[value] = to_keep[key]
+            else:
+                warnings.warn(f"`key_map` has {key}:{value} but {value} not in `to_keep`!")
+
     # If `dont_recompose` is a bool and true, then set it to all axes
     if dont_recompose is True:
         dont_recompose = _dataset.all_axes.copy()
