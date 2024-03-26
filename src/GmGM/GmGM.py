@@ -29,6 +29,7 @@ except ImportError:
 
 # For warnings
 import warnings
+from numbers import Real
 
 # For checking sparsity
 import scipy.sparse as sparse
@@ -114,7 +115,8 @@ def GmGM(
 
     # Expand `to_keep` if necessary
     # First expand if it's a single value
-    to_keep = {axis: to_keep for axis in _dataset.all_axes}
+    if isinstance(to_keep, Real):
+        to_keep = {axis: to_keep for axis in _dataset.all_axes}
 
     # If `dont_recompose` is a bool and true, then set it to all axes
     if dont_recompose is True:
