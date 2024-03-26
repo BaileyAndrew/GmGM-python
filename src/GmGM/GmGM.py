@@ -114,8 +114,7 @@ def GmGM(
 
     # Expand `to_keep` if necessary
     # First expand if it's a single value
-    if not isinstance(threshold_method, Iterable):
-        to_keep = {axis: to_keep for axis in _dataset.all_axes}
+    to_keep = {axis: to_keep for axis in _dataset.all_axes}
 
     # If `dont_recompose` is a bool and true, then set it to all axes
     if dont_recompose is True:

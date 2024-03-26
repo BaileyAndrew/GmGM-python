@@ -2,7 +2,9 @@
 
 ## v0.4.1 (IN PROGRESS)
 
-TODO: THIS
+### Fixes
+- BUG1: `to_keep` now successfully auto-turned-into a dictionary [bug was introduced in previous version]
+
 
 ## v0.4.0 (22/03/2024)
 
