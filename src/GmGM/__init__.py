@@ -17,3 +17,5 @@ __all__ = [
     "recompose_sparse_precisions",
     "recompose_dense_precisions"
 ]
+
+__version__ = "0.4.1"

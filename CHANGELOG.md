@@ -8,6 +8,10 @@
 - BUG-003: Passing `key_map` no longer issues faulty warnings
 - BUG-004: `direct_svd` with `calculated_explained_variance=True` no longer crashes
 
+### Improvements
+- No longer need `verbose=True` for `Dataset.total_variance` field to be filled.
+- Added a "__version__" attribute
+
 
 ## v0.4.0 (22/03/2024)
 

@@ -13,7 +13,6 @@ from .core.presparse_methods import recompose_sparse_precisions
 
 # Used for typing
 from typing import Optional, Literal
-from collections.abc import Iterable
 from .extras.prior import Prior
 from .typing import Axis, MaybeDict
 from .dataset import Dataset
