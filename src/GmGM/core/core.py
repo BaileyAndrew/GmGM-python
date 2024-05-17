@@ -255,7 +255,10 @@ def direct_svd(
     X.es[second_axis] = Lambda
 
     if calculate_explained_variance:
-        total_variance = (dataset**2).sum()
+        if sparse.isspmatrix(dataset):
+            total_variance = dataset.power(2).sum()
+        else:
+            total_variance = (dataset**2).sum()
         if isinstance(total_variance, da.Array):
             total_variance = total_variance.compute()
         explained_variance = X.es[first_axis].sum() / total_variance

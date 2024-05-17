@@ -1,12 +1,13 @@
 # Changelog
 
-## v0.4.1 (IN PROGRESS)
+## v0.4.1 (17/05/2024)
 
 ### Fixes
 - BUG-001: `to_keep` now successfully auto-turned-into a dictionary [bug was introduced in previous version]
 - BUG-002: `direct_left_eigenvectors` with `calculate_explained_variance=True` no longer crashes [dask matrix needed to be `.compute()`ed.]
 - BUG-003: Passing `key_map` no longer issues faulty warnings
 - BUG-004: `direct_svd` with `calculated_explained_variance=True` no longer crashes
+- BUG-005: Fixed "sparse matrix is not square" error, caused when the input is represented as a sparse "matrix" instead of an "array", which affects the meaning of "**2".
 
 ### Improvements
 - No longer need `verbose=True` for `Dataset.total_variance` field to be filled.
