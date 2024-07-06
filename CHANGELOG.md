@@ -1,5 +1,10 @@
 # Changelog
 
+## v0.5.2 (06/07/2024)
+
+### Improvements
+- `GmGM(threshold_method="statistical-significance")` now skips over axes that have a threshold of `np.inf`
+
 ## v0.5.1 (04/07/2024)
 
 ### Fixes

@@ -316,6 +316,9 @@ def recompose_sparse_precisions(
             else:
                 correction = 1
             threshold = stats.norm.ppf(1 - significance_level / correction) / coef
+            if significance_level == 0:
+                # Just to ensure no numerical precision nonsense happens to prevent this
+                threshold = np.inf
             X.precision_matrices[axis] = _estimate_sparse_gram_threshold(
                 half,
                 threshold,
@@ -525,6 +528,10 @@ def _estimate_sparse_gram_threshold(
         (features, features),
         dtype=np.float32
     )
+
+    if threshold == np.inf:
+        # Nothing to do!
+        return result
 
 
     for i in range(0, features + batch_size, batch_size):
