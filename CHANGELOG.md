@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.5.1 (04/07/2024)
+
+### Fixes
+- BUG-006: Fixed `GmGM.__version__` string
+
+## v0.5.0 (04/07/2024)
+
+### Improvements
+- Can now threshold by statistical significance (using `GmGM(threshold_method="statistical-significance")`)
+- Can use Bonferroni correction to this with `GmGM(threshold_method="bonferroni")`; this is an axis-wise correction.  If investigating the results of multiple axes, you will want to correct for those manually with the results from `threshold_method="statistical-significance"`.
+
 ## v0.4.1 (17/05/2024)
 
 ### Fixes

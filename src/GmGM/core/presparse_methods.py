@@ -297,11 +297,40 @@ def recompose_sparse_precisions(
                 batch_size,
                 verbose=verbose
             )
+        elif threshold_method in {"statistical-significance", "bonferroni"}:
+            significance_level = to_keep[axis]
+            modalities = list(X.structure.keys())
+            variances = np.array([
+                1 / len(X.structure[modal]) for modal in modalities
+                if axis in X.structure[modal]
+            ]) # assume this for simplicity
+            d_ell = X.axis_sizes[axis]
+            d_foralls = np.array([
+                X.full_sizes[modal]
+                for modal in modalities
+                if axis in X.structure[modal]
+            ])
+            coef = np.sqrt(np.sum(d_foralls * variances**2) / d_ell)
+            if threshold_method == "bonferroni":
+                correction = (d_ell**2 - d_ell) / 2
+            else:
+                correction = 1
+            threshold = stats.norm.ppf(1 - significance_level / correction) / coef
+            X.precision_matrices[axis] = _estimate_sparse_gram_threshold(
+                half,
+                threshold,
+                batch_size,
+                verbose=verbose
+            )
         else:
             raise ValueError(f"{threshold_method} is not a valid thresholding method")
 
         if min_edges[axis] > 0:
-            if threshold_method in {"overall", "nonsingleton-percentage"}:
+            if threshold_method in {
+                "overall",
+                "nonsingleton-percentage",
+                "statistical-significance"
+            }:
                 # Just keep the largest edge per row
                 add = _estimate_sparse_gram_per_row(
                     half,
@@ -328,7 +357,10 @@ def recompose_sparse_precisions(
         X.precision_matrices[axis] = (
             X.precision_matrices[axis]
             + X.precision_matrices[axis].T
-        ) / 2
+        )
+        X.precision_matrices[axis].setdiag(
+            X.precision_matrices[axis].diagonal() / 2
+        )
 
     return X
 
@@ -468,6 +500,71 @@ def _estimate_sparse_gram(
     result.col = result.col[num_to_keep:]
 
     return result
+
+def _estimate_sparse_gram_threshold(
+    matrix: DataTensor,
+    threshold: float,
+    batch_size: Optional[int] = None,
+    divide_by_diagonal: bool = False,
+    verbose: bool = False
+) -> sparse.sparray:
+    """
+    Computes matrix @ matrix.T in a sparse manner.
+    """
+
+    if batch_size is None:
+        batch_size = min(matrix.shape[0], 1000)
+
+    assert threshold >= 0, "`threshold` cannot be negative"
+
+    features, _ = matrix.shape
+
+    # Create a sparse array to store the result
+    # We use dok because a priori we have no idea how big it will be
+    result = sparse.dok_array(
+        (features, features),
+        dtype=np.float32
+    )
+
+
+    for i in range(0, features + batch_size, batch_size):
+        if i >= features:
+            break
+        # Compute the entire row at once to save time
+        # Assuming we have space that is linear in axis length
+        # (a reasonable assumption)
+        # then this is okay to do!
+        increase: int = min(batch_size, features - i)
+        res_batch: np.ndarray
+        if isinstance(matrix, sparse.sparray):
+            # Warning: this implementation becomes quite slow
+            # when the matrices are very large.  Better to,
+            # if possible, work with dense matrices.
+            rhs = matrix[i:i+increase].toarray().T
+            res_batch = np.abs(matrix[i:] @ rhs)
+        else:
+            res_batch = np.abs(matrix[i:] @ matrix[i:i+increase].T)
+
+        # Remove the diagonal so it does not affect thresholding!
+        diags = np.diagonal(res_batch).copy()
+        if divide_by_diagonal:
+            diags[diags == 0] = 1
+            np.fill_diagonal(res_batch, 0)
+        else:
+            diags[:] = 1
+        res_batch = res_batch / diags
+
+        # Remove everything above diagonal so it does not affect thresholding!
+        # (due to symmetry)
+        res_batch[np.triu_indices(increase)] = 0
+
+        # Find the elements above threshold
+        to_keep_idxs = np.argwhere(res_batch / 2 >= threshold)
+
+        for idxs in to_keep_idxs:
+            result[idxs[0] + i, idxs[1] + i] = res_batch[idxs[0], idxs[1]]
+
+    return result.tocsr()
 
 def _estimate_sparse_gram_nonsingleton_percentage(
     matrix: DataTensor,

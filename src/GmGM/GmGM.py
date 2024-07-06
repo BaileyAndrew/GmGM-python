@@ -65,8 +65,10 @@ def GmGM(
         "overall-col-weighted",
         "rowwise",
         "rowwise-col-weighted",
-        "nonsingleton-percentage"
-    ]] = "overall",
+        "nonsingleton-percentage",
+        "statistical-significance",
+        "bonferroni"
+    ]] = "statistical-significance",
     min_edges: int = 0,
     dont_recompose: Optional[set[Axis]] | bool = None,
     # from_AnnData/MuData parameters
