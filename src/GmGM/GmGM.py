@@ -69,8 +69,10 @@ def GmGM(
         "statistical-significance",
         "bonferroni"
     ]] = "statistical-significance",
-    min_edges: int = 0,
+    min_edges: Optional[MaybeDict[Axis, int]] = 0,
     dont_recompose: Optional[set[Axis]] | bool = None,
+    give_covariances: Optional[MaybeDict[Axis, float]] = None,
+    stat_signif_variance: Optional[MaybeDict[Axis, float]] = None,
     # from_AnnData/MuData parameters
     use_highly_variable: bool = False,
     key_added: str = "gmgm",
@@ -263,6 +265,12 @@ def GmGM(
         check_overstep_each_iter=check_overstep_each_iter,
     )
 
+    # If we want to return covariance, invert the eigenvalues
+    if give_covariances is not None:
+        for axis, value in give_covariances.items():
+            if value is True:
+                _dataset.evals[axis] = 1 / _dataset.evals[axis]
+
     # Recompose sparse precisions
     if to_keep is not None:
         if verbose:
@@ -273,7 +281,8 @@ def GmGM(
             threshold_method=threshold_method,
             min_edges=min_edges,
             batch_size=batch_size,
-            dont_recompose=dont_recompose
+            dont_recompose=dont_recompose,
+            variance=stat_signif_variance
         )
     else:
         if verbose:

@@ -207,6 +207,7 @@ def recompose_sparse_precisions(
     min_edges: MaybeDict[Axis, int] = 0,
     dont_recompose: Optional[set[Axis]] = None,
     batch_size: Optional[int] = None,
+    variance: Optional[MaybeDict[Axis, float]] = None,
     verbose: bool = False
 ) -> Dataset:
     """
@@ -300,10 +301,22 @@ def recompose_sparse_precisions(
         elif threshold_method in {"statistical-significance", "bonferroni"}:
             significance_level = to_keep[axis]
             modalities = list(X.structure.keys())
+
+            # Assume for simplicity that the variance is the default described
+            # in the paper, i.e. 1/L where L is the number of modalities
             variances = np.array([
                 1 / len(X.structure[modal]) for modal in modalities
                 if axis in X.structure[modal]
             ]) # assume this for simplicity
+
+            # If we have variance information, use it instead of default
+            if variance is not None:
+                if isinstance(variance, Real):
+                    variances = np.array([variance] * len(variances))
+                else:
+                    for modal, var in variance.items():
+                        if axis in X.structure[modal]:
+                            variances[modalities.index(modal)] = var
             d_ell = X.axis_sizes[axis]
             d_foralls = np.array([
                 X.full_sizes[modal]
@@ -552,14 +565,10 @@ def _estimate_sparse_gram_threshold(
         else:
             res_batch = np.abs(matrix[i:] @ matrix[i:i+increase].T)
 
-        # Remove the diagonal so it does not affect thresholding!
+        # Optionally divide by the diagonal so it does not affect thresholding!
         diags = np.diagonal(res_batch).copy()
         if divide_by_diagonal:
-            diags[diags == 0] = 1
-            np.fill_diagonal(res_batch, 0)
-        else:
-            diags[:] = 1
-        res_batch = res_batch / diags
+            res_batch = res_batch / diags
 
         # Remove everything above diagonal so it does not affect thresholding!
         # (due to symmetry)
@@ -570,6 +579,9 @@ def _estimate_sparse_gram_threshold(
 
         for idxs in to_keep_idxs:
             result[idxs[0] + i, idxs[1] + i] = res_batch[idxs[0], idxs[1]]
+
+        for diag_idx in range(increase):
+            result[i + diag_idx, i + diag_idx] = diags[diag_idx]
 
     return result.tocsr()
 

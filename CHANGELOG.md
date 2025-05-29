@@ -1,5 +1,25 @@
 # Changelog
 
+## v0.5.6 (29/05/2024)
+
+### Improvements
+- Allowed installing alongside Python 3.12
+
+## v0.5.5 (13/09/2024)
+
+### Improvements
+- For `bonferroni` and `statistical-significance`, can now manually specify the variance desired.  The default is 1/#of axes.
+
+## v0.5.4 (10/09/2024)
+
+### Improvements
+- Can now return sparse covariance matrices (by inverting eigenvalues before recomposition).  Note that this operation is not well-defined, due to the non-identifiability of the diagonals.
+
+## v0.5.3 (29/07/2024)
+
+### Improvements
+- When picking values by a threshold (as in statistical significance), no longer sets diagonals to zero.  Will make this apply to all methods in the future.
+
 ## v0.5.2 (06/07/2024)
 
 ### Improvements
